@@ -1,5 +1,5 @@
 ---
-description: "Task list for feature implementation"
+description: 'Task list for feature implementation'
 ---
 
 # Tasks: Ver notificaciones en tiempo real en el panel

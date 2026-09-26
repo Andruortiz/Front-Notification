@@ -10,7 +10,7 @@
 actualizan solos via SSE en vez de requerir refresh manual. El backend (Notification-uco) ya expone
 el feed en tiempo real (GET /notifications:subscribe, historia 006-dashboard-tiempo-real)."
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Ver el listado actualizarse solo (Priority: P1)
 
@@ -98,7 +98,7 @@ queda al día sin que el operador recargue la página.
 - ¿Qué pasa si el feed en tiempo real se interrumpe de forma indefinida (no solo una caída breve)? El
   panel lo indica visiblemente en vez de aparentar estar al día en silencio.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -118,7 +118,7 @@ queda al día sin que el operador recargue la página.
 - **FR-007**: El panel DEBE mostrar de forma explícita si la conexión en tiempo real está activa,
   reconectando o interrumpida, para que el operador sepa si la vista puede estar desactualizada.
 
-### Key Entities *(include if feature involves data)*
+### Key Entities _(include if feature involves data)_
 
 - **Notificación**: entidad ya existente (historias previas del listado y el detalle); esta historia
   no agrega campos nuevos, solo consume sus cambios de estado en tiempo real además de la consulta
@@ -127,7 +127,7 @@ queda al día sin que el operador recargue la página.
   afectada y su estado más reciente; el panel lo usa para actualizar la fila o el detalle
   correspondiente, nunca como una entidad propia que el panel persista.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 

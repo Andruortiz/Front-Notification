@@ -8,10 +8,10 @@ Lo que agrega son dos tipos puramente de UI/estado del cliente.
 
 Viene de `components['schemas']['NotificationLiveUpdate']` en el `schema.d.ts` regenerado:
 
-| Campo          | Tipo                             | Notas                                              |
-|----------------|-----------------------------------|-----------------------------------------------------|
-| `action`       | `'UPSERT' \| 'REMOVE'`            | UPSERT: mostrar/actualizar. REMOVE: quitar de vista. |
-| `notification` | `NotificationHistoryItem`         | Mismo shape que un ítem de `NotificationSearchResponse.items`. |
+| Campo          | Tipo                      | Notas                                                          |
+| -------------- | ------------------------- | -------------------------------------------------------------- |
+| `action`       | `'UPSERT' \| 'REMOVE'`    | UPSERT: mostrar/actualizar. REMOVE: quitar de vista.           |
+| `notification` | `NotificationHistoryItem` | Mismo shape que un ítem de `NotificationSearchResponse.items`. |
 
 ## `LiveConnectionState` (nuevo, solo cliente)
 
@@ -26,7 +26,7 @@ type LiveConnectionState = 'connecting' | 'open' | 'reconnecting' | 'closed';
 - `closed`: la pantalla se desmontó y cerró la conexión intencionalmente (no es un error).
 
 No hay un estado de error terminal expuesto a la UI — `fetch-event-source` reintenta indefinidamente
-por diseño (Decisión 1); FR-007 solo exige mostrar *que* está reconectando, no ofrecer una acción de
+por diseño (Decisión 1); FR-007 solo exige mostrar _que_ está reconectando, no ofrecer una acción de
 "reintentar" manual.
 
 ## Transiciones de estado que consume esta historia
