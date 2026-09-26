@@ -4,16 +4,16 @@ import { apiFetch } from '../api/client';
 import type { components } from '../api/schema';
 import StatusBadge from '../components/StatusBadge';
 
-type NotificationSearchResponse = components['schemas']['NotificationSearchResponse'];
+type NotificationHistoryItem = components['schemas']['NotificationHistoryItem'];
 
-function formatDate(value: string) {
-    return new Date(value).toLocaleString();
+function formatDate(value?: string) {
+    return value ? new Date(value).toLocaleString() : 'sin datos';
 }
 
 export default function Listado() {
     const { data, isLoading, isError, error } = useQuery({
         queryKey: ['notifications'],
-        queryFn: () => apiFetch<NotificationSearchResponse>('/notifications'),
+        queryFn: () => apiFetch<NotificationHistoryItem[]>('/notifications'),
     });
 
     return (
@@ -31,11 +31,11 @@ export default function Listado() {
                 </div>
             )}
 
-            {!isLoading && !isError && (!data || data.items.length === 0) && (
+            {!isLoading && !isError && (!data || data.length === 0) && (
                 <div className="state-message">Todavía no hay notificaciones.</div>
             )}
 
-            {!isLoading && !isError && data && data.items.length > 0 && (
+            {!isLoading && !isError && data && data.length > 0 && (
                 <table className="data-table">
                     <thead>
                         <tr>
@@ -48,7 +48,7 @@ export default function Listado() {
                         </tr>
                     </thead>
                     <tbody>
-                        {data.items.map((n) => (
+                        {data.map((n) => (
                             <tr key={n.notificationId}>
                                 <td>{n.externalId}</td>
                                 <td>{n.channelType}</td>
@@ -56,7 +56,7 @@ export default function Listado() {
                                     <StatusBadge status={n.status} />
                                 </td>
                                 <td className="cell-muted">{formatDate(n.acceptedAt)}</td>
-                                <td className="cell-muted">{n.deliveryAttempts.length}</td>
+                                <td className="cell-muted">{n.deliveryAttempts?.length ?? 0}</td>
                                 <td>
                                     <Link className="link-button" to={`/notificaciones/${n.notificationId}`}>
                                         Ver detalle
