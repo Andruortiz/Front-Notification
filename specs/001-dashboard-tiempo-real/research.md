@@ -90,11 +90,13 @@ endpoint dedicado).
 
 ## Decisión 4 — Resync en reconexión: confiar en la "foto vigente" que ya reenvía el backend
 
-**Decision**: En el callback `onopen` de `fetch-event-source` (se dispara en la conexión inicial y en
-cada reconexión), `useNotificationsLiveFeed` limpia su vista de `['notifications']` a una lista vacía
-justo antes de que lleguen los eventos `UPSERT` de la ráfaga inicial que el backend ya reenvía en esa
-conexión nueva (ver `specs/006-dashboard-tiempo-real` del backend: "una reconexión ... siempre
-reproduce la foto vigente"). No se implementa ningún mecanismo de resync propio.
+**Decision**: `useNotificationsLiveFeed` limpia su vista de `['notifications']` a una lista vacía solo
+cuando el estado pasa a `open` **después** de haber pasado por `reconnecting` (una reconexión real,
+no la conexión inicial) — justo antes de que lleguen los eventos `UPSERT` de la ráfaga que el backend
+ya reenvía en esa conexión nueva (ver `specs/006-dashboard-tiempo-real` del backend: "una reconexión
+... siempre reproduce la foto vigente"). La conexión inicial NO limpia nada, para no generar un
+parpadeo de "sin datos" en la primera carga (la carga inicial ya la resuelve el `useQuery` existente
+de `GET /notifications`). No se implementa ningún mecanismo de resync propio más allá de eso.
 
 **Rationale**:
 - El contrato del backend ya resuelve FR-004/US3 por diseño — cualquier reconexión (inicial o tras una

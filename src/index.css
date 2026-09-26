@@ -24,6 +24,13 @@
     --status-discarded-bg: #f1f0f4;
     --status-discarded-text: #6b6375;
 
+    --live-open-bg: #dcfce7;
+    --live-open-text: #15803d;
+    --live-reconnecting-bg: #fef3c7;
+    --live-reconnecting-text: #b45309;
+    --live-idle-bg: #eef0f3;
+    --live-idle-text: #4b5563;
+
     --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
     --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
     --mono: ui-monospace, Consolas, monospace;
@@ -65,6 +72,13 @@
         --status-failed-text: #fca5a5;
         --status-discarded-bg: #26272f;
         --status-discarded-text: #9ca3af;
+
+        --live-open-bg: #113322;
+        --live-open-text: #86efac;
+        --live-reconnecting-bg: #3a2c0c;
+        --live-reconnecting-text: #fcd34d;
+        --live-idle-bg: #2a2c34;
+        --live-idle-text: #b6bcc7;
     }
 }
 
@@ -208,6 +222,41 @@ code {
 .status-badge--discarded {
     background: var(--status-discarded-bg);
     color: var(--status-discarded-text);
+}
+
+/* Live connection badge */
+
+.live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
+
+.live-badge__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.live-badge--connecting,
+.live-badge--closed {
+    background: var(--live-idle-bg);
+    color: var(--live-idle-text);
+}
+.live-badge--open {
+    background: var(--live-open-bg);
+    color: var(--live-open-text);
+}
+.live-badge--reconnecting {
+    background: var(--live-reconnecting-bg);
+    color: var(--live-reconnecting-text);
 }
 
 /* Table */
