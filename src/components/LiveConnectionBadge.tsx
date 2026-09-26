@@ -8,10 +8,5 @@ const LABELS: Record<LiveConnectionState, string> = {
 };
 
 export default function LiveConnectionBadge({ state }: { state: LiveConnectionState }) {
-    return (
-        <span className={`live-badge live-badge--${state}`}>
-            <span className="live-badge__dot" />
-            {LABELS[state]}
-        </span>
-    );
+    return <span className={`live-badge live-badge--${state}`}>{LABELS[state]}</span>;
 }
