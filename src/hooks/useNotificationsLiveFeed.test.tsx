@@ -75,6 +75,40 @@ describe('useNotificationsLiveFeed', () => {
         });
     });
 
+    it('keeps the position of an updated notification instead of moving it to the front', async () => {
+        const client = new QueryClient();
+        client.setQueryData(['notifications'], {
+            items: [
+                notificationHistoryItem({ notificationId: 'notif-newest', status: 'PENDING' }),
+                notificationHistoryItem({ notificationId: 'notif-1', status: 'PENDING' }),
+                notificationHistoryItem({ notificationId: 'notif-oldest', status: 'PENDING' }),
+            ],
+            limit: 50,
+            offset: 0,
+            hasNext: false,
+        } satisfies NotificationSearchResponse);
+        const { result } = renderWithClient(client);
+        await waitFor(() => expect(result.current).toBe('open'));
+
+        emitLiveUpdate({
+            action: 'UPSERT',
+            notification: notificationHistoryItem({
+                notificationId: 'notif-1',
+                status: 'DELIVERED',
+            }),
+        });
+
+        await waitFor(() => {
+            const cache = client.getQueryData<NotificationSearchResponse>(['notifications']);
+            expect(cache?.items.map((item) => item.notificationId)).toEqual([
+                'notif-newest',
+                'notif-1',
+                'notif-oldest',
+            ]);
+            expect(cache?.items[1]?.status).toBe('DELIVERED');
+        });
+    });
+
     it('removes a notification when a REMOVE event arrives', async () => {
         const client = new QueryClient();
         client.setQueryData(['notifications'], {
