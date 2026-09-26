@@ -158,3 +158,26 @@ job nuevo `test`).
 
 - **Dejar el tooling de pruebas para una historia aparte, implementar esta sin pruebas**: descartado
   — viola el Principio VII (sin atajos) y el III explícitamente.
+
+## Addendum — dos bugs encontrados en code review post-implementación
+
+**Decision 7 — La cache de `['notifications']` no se refetchea automáticamente**
+
+`Listado.tsx` agrega `refetchOnMount: false`, `refetchOnWindowFocus: false` y
+`refetchOnReconnect: false` a su `useQuery`. Con el `QueryClient` por defecto
+(`staleTime: 0`), cualquiera de esos refetches automáticos pisaba por completo lo que
+`useNotificationsLiveFeed` había construido vía SSE (Decision 3) sin ninguna coordinación entre los
+dos escritores de la misma query key — por ejemplo, el operador cambiando de pestaña y volviendo
+revertía notificaciones ya actualizadas en vivo a su estado de la carga inicial. El feed SSE ya es
+quien mantiene esta vista al día (incluida la resincronización en reconexión, Decision 4); un
+refetch automático de la consulta REST no aporta nada y solo puede pisar datos más recientes.
+
+**Decision 8 — Un `UPSERT` sobre una fila existente actualiza en su lugar, no la mueve al frente**
+
+`useNotificationsLiveFeed` ahora busca el índice de la notificación existente
+(`findIndex`) y, si ya está en la lista, la reemplaza en ese mismo índice
+(`toSpliced(index, 1, nuevoValor)`); solo una notificación genuinamente nueva se antepone al
+principio de la lista. Antes, cualquier `UPSERT` (nuevo o existente) reconstruía el array como
+`[actualizado, ...resto]`, por lo que una notificación vieja que solo cambiaba de estado saltaba
+al tope de la tabla, rompiendo el orden por `acceptedAt` que trae la carga inicial y contradiciendo
+la semántica "en su lugar" que ya afirmaban (sin verificarla) los tests de esta historia.

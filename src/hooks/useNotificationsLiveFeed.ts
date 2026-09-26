@@ -47,14 +47,26 @@ export function useNotificationsLiveFeed(
                         ['notifications'],
                         (previous) => {
                             const base = previous ?? emptyResponse();
-                            const withoutItem = base.items.filter(
+                            const existingIndex = base.items.findIndex(
                                 (item) =>
-                                    item.notificationId !== update.notification.notificationId,
+                                    item.notificationId === update.notification.notificationId,
                             );
                             if (update.action === 'REMOVE') {
-                                return { ...base, items: withoutItem };
+                                if (existingIndex === -1) {
+                                    return base;
+                                }
+                                const items = base.items.toSpliced(existingIndex, 1);
+                                return { ...base, items };
                             }
-                            return { ...base, items: [update.notification, ...withoutItem] };
+                            if (existingIndex === -1) {
+                                return { ...base, items: [update.notification, ...base.items] };
+                            }
+                            const items = base.items.toSpliced(
+                                existingIndex,
+                                1,
+                                update.notification,
+                            );
+                            return { ...base, items };
                         },
                     );
                 },

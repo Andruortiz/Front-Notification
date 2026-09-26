@@ -16,6 +16,9 @@ export default function Listado() {
     const { data, isLoading, isError, error } = useQuery({
         queryKey: ['notifications'],
         queryFn: () => apiFetch<NotificationSearchResponse>('/notifications'),
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
     const connectionState = useNotificationsLiveFeed();
 
