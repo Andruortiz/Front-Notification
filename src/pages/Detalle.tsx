@@ -51,7 +51,7 @@ export default function Detalle() {
                         <dt>Proveedor</dt>
                         <dd>{data.providerId ?? 'sin intento todavía'}</dd>
                         <dt>Última actualización</dt>
-                        <dd>{new Date(data.lastUpdatedAt).toLocaleString()}</dd>
+                        <dd>{data.lastUpdatedAt ? new Date(data.lastUpdatedAt).toLocaleString() : 'sin datos'}</dd>
                     </dl>
                 </div>
             )}
