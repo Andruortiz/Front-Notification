@@ -1,17 +1,18 @@
 <!--
 Sync Impact Report
-Version change: (ninguna) → 0.1.0
-Rationale: BORRADOR inicial, NO RATIFICADO. Adopta spec-kit en Front-Notification con una constitución
-más corta que la del backend (Notification-uco). El usuario debe revisarla y aprobarla antes de
-usarla para una historia (Principio VI). Mientras no se ratifique, ninguna historia se considera
-gobernada por spec-kit.
-Added principles: I a VIII.
-Deferred / TODO (declarados como pendientes explícitos, Principio VII): umbral de cobertura de
-pruebas; pipeline de CI del frontend; cliente SSE (decisión abierta sobre cómo enviar X-Tenant-Id);
-confirmar si la regla de cero comentarios se hereda del backend.
+Version change: 0.1.0 → 0.2.0
+Rationale: BORRADOR, todavía NO RATIFICADO. La historia "dashboard en tiempo real"
+(specs/001-dashboard-tiempo-real) resolvió dos de los pendientes declarados en 0.1.0: el pipeline de
+CI del frontend (PR #5, GitHub Actions con lint/typecheck/test/build) y la decisión de cliente SSE
+(`@microsoft/fetch-event-source`, por el header `X-Tenant-Id` que `EventSource` nativo no puede
+enviar). Se actualizan las secciones que documentaban ambos como pendientes.
+Modified sections: Restricciones técnicas (cliente SSE ya no pendiente), Flujo de desarrollo (CI ya
+existe).
+Deferred / TODO que siguen abiertos (Principio VII): umbral de cobertura de pruebas; confirmar si la
+regla de cero comentarios se hereda del backend.
 -->
 
-# Front-Notification Constitution (borrador 0.1.0)
+# Front-Notification Constitution (borrador 0.2.0)
 
 ## Core Principles
 
@@ -69,14 +70,15 @@ React 19, TypeScript, Vite, TanStack Query para el estado del servidor y React R
 de componentes pesada mientras las pantallas sean pocas. La URL base de la API es configurable por
 entorno y nunca está fija en el código. Tipografía Manrope para la interfaz y JetBrains Mono para
 identificadores y fechas. Para el panel en vivo, el `EventSource` nativo no permite enviar cabeceras
-y el flujo exige `X-Tenant-Id`: **cómo suscribirse queda pendiente de decisión** y no se asume aquí.
+y el flujo exige `X-Tenant-Id`: se consume con `@microsoft/fetch-event-source` (envuelve `fetch`,
+permite headers arbitrarios) en vez de `EventSource` nativo (specs/001-dashboard-tiempo-real).
 
 ## Flujo de desarrollo
 
 Los artefactos de spec-kit (`spec.md`, `plan.md`, `tasks.md`) se commitean en la misma rama que el
 código que implementan. `tasks.md` incluye siempre una tarea de prueba de flujo para las historias
-de tamaño M o mayor. **No existe todavía pipeline de CI para este repositorio**; hasta que exista, la
-verificación es local (`npm run build`, `npm run lint` y las pruebas).
+de tamaño M o mayor. El pipeline de CI (`.github/workflows/ci.yml`) corre `lint`, `typecheck`, `test`
+y `build` en cada push/PR contra `develop` y `master`; ningún PR se mergea con ese pipeline en rojo.
 
 ## Governance
 
@@ -84,4 +86,4 @@ Esta constitución tiene precedencia sobre cualquier práctica ad hoc. Las enmie
 actualizar este archivo, incrementar la versión según semver y añadir un Sync Impact Report. Este
 documento es un borrador hasta que el usuario lo apruebe y se ratifique con la versión 1.0.0.
 
-**Version**: 0.1.0 (borrador) | **Ratified**: pendiente | **Last Amended**: 2026-09-21
+**Version**: 0.2.0 (borrador) | **Ratified**: pendiente | **Last Amended**: 2026-09-25

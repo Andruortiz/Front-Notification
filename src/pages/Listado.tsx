@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../api/client';
 import type { components } from '../api/schema';
 import StatusBadge from '../components/StatusBadge';
+import LiveConnectionBadge from '../components/LiveConnectionBadge';
+import { useNotificationsLiveFeed } from '../hooks/useNotificationsLiveFeed';
 
-type NotificationHistoryItem = components['schemas']['NotificationHistoryItem'];
+type NotificationSearchResponse = components['schemas']['NotificationSearchResponse'];
 
 function formatDate(value?: string) {
     return value ? new Date(value).toLocaleString() : 'sin datos';
@@ -13,13 +15,17 @@ function formatDate(value?: string) {
 export default function Listado() {
     const { data, isLoading, isError, error } = useQuery({
         queryKey: ['notifications'],
-        queryFn: () => apiFetch<NotificationHistoryItem[]>('/notifications'),
+        queryFn: () => apiFetch<NotificationSearchResponse>('/notifications'),
     });
+    const connectionState = useNotificationsLiveFeed();
 
     return (
         <div>
             <div className="page-header">
-                <h1>Notificaciones</h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <h1 style={{ marginBottom: 0 }}>Notificaciones</h1>
+                    <LiveConnectionBadge state={connectionState} />
+                </div>
                 <p className="page-subtitle">
                     Historial de notificaciones aceptadas por el sistema.
                 </p>
@@ -33,11 +39,11 @@ export default function Listado() {
                 </div>
             )}
 
-            {!isLoading && !isError && (!data || data.length === 0) && (
+            {!isLoading && !isError && (!data || data.items.length === 0) && (
                 <div className="state-message">Todavía no hay notificaciones.</div>
             )}
 
-            {!isLoading && !isError && data && data.length > 0 && (
+            {!isLoading && !isError && data && data.items.length > 0 && (
                 <table className="data-table">
                     <thead>
                         <tr>
@@ -50,7 +56,7 @@ export default function Listado() {
                         </tr>
                     </thead>
                     <tbody>
-                        {data.map((n) => (
+                        {data.items.map((n) => (
                             <tr key={n.notificationId}>
                                 <td>{n.externalId}</td>
                                 <td>{n.channelType}</td>
