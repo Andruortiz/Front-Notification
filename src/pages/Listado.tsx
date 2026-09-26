@@ -50,6 +50,7 @@ export default function Listado() {
                             <th>Destinatario</th>
                             <th>Canal</th>
                             <th>Estado</th>
+                            <th>Proveedor</th>
                             <th>Aceptada</th>
                             <th>Intentos</th>
                             <th></th>
@@ -58,10 +59,14 @@ export default function Listado() {
                     <tbody>
                         {data.items.map((n) => (
                             <tr key={n.notificationId}>
-                                <td>{n.externalId}</td>
+                                <td>{n.recipientId}</td>
                                 <td>{n.channelType}</td>
                                 <td>
                                     <StatusBadge status={n.status} />
+                                </td>
+                                <td className="cell-muted">
+                                    {n.deliveryAttempts?.at(-1)?.providerId ??
+                                        'sin intento todavía'}
                                 </td>
                                 <td className="cell-muted">{formatDate(n.acceptedAt)}</td>
                                 <td className="cell-muted">{n.deliveryAttempts?.length ?? 0}</td>
