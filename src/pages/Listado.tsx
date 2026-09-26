@@ -20,7 +20,9 @@ export default function Listado() {
         <div>
             <div className="page-header">
                 <h1>Notificaciones</h1>
-                <p className="page-subtitle">Historial de notificaciones aceptadas por el sistema.</p>
+                <p className="page-subtitle">
+                    Historial de notificaciones aceptadas por el sistema.
+                </p>
             </div>
 
             {isLoading && <div className="state-message">Cargando notificaciones...</div>}
@@ -58,7 +60,10 @@ export default function Listado() {
                                 <td className="cell-muted">{formatDate(n.acceptedAt)}</td>
                                 <td className="cell-muted">{n.deliveryAttempts?.length ?? 0}</td>
                                 <td>
-                                    <Link className="link-button" to={`/notificaciones/${n.notificationId}`}>
+                                    <Link
+                                        className="link-button"
+                                        to={`/notificaciones/${n.notificationId}`}
+                                    >
                                         Ver detalle
                                     </Link>
                                 </td>

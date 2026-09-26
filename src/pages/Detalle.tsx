@@ -37,7 +37,9 @@ export default function Detalle() {
 
             {data && (
                 <div className="card">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                    <div
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}
+                    >
                         <h1 style={{ marginBottom: 0 }}>Detalle de notificación</h1>
                         <StatusBadge status={data.status} />
                     </div>
@@ -51,7 +53,11 @@ export default function Detalle() {
                         <dt>Proveedor</dt>
                         <dd>{data.providerId ?? 'sin intento todavía'}</dd>
                         <dt>Última actualización</dt>
-                        <dd>{data.lastUpdatedAt ? new Date(data.lastUpdatedAt).toLocaleString() : 'sin datos'}</dd>
+                        <dd>
+                            {data.lastUpdatedAt
+                                ? new Date(data.lastUpdatedAt).toLocaleString()
+                                : 'sin datos'}
+                        </dd>
                     </dl>
                 </div>
             )}
