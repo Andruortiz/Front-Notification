@@ -4,7 +4,7 @@ import { apiFetch } from '../api/client';
 import type { components } from '../api/schema';
 import StatusBadge from '../components/StatusBadge';
 
-type NotificationHistoryItem = components['schemas']['NotificationHistoryItem'];
+type NotificationSearchResponse = components['schemas']['NotificationSearchResponse'];
 
 function formatDate(value?: string) {
     return value ? new Date(value).toLocaleString() : 'sin datos';
@@ -13,7 +13,7 @@ function formatDate(value?: string) {
 export default function Listado() {
     const { data, isLoading, isError, error } = useQuery({
         queryKey: ['notifications'],
-        queryFn: () => apiFetch<NotificationHistoryItem[]>('/notifications'),
+        queryFn: () => apiFetch<NotificationSearchResponse>('/notifications'),
     });
 
     return (
@@ -33,11 +33,11 @@ export default function Listado() {
                 </div>
             )}
 
-            {!isLoading && !isError && (!data || data.length === 0) && (
+            {!isLoading && !isError && (!data || data.items.length === 0) && (
                 <div className="state-message">Todavía no hay notificaciones.</div>
             )}
 
-            {!isLoading && !isError && data && data.length > 0 && (
+            {!isLoading && !isError && data && data.items.length > 0 && (
                 <table className="data-table">
                     <thead>
                         <tr>
@@ -50,7 +50,7 @@ export default function Listado() {
                         </tr>
                     </thead>
                     <tbody>
-                        {data.map((n) => (
+                        {data.items.map((n) => (
                             <tr key={n.notificationId}>
                                 <td>{n.externalId}</td>
                                 <td>{n.channelType}</td>

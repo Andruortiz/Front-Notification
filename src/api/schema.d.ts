@@ -28,6 +28,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notifications:subscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suscribirse a actualizaciones en tiempo real
+         * @description Historia "dashboard en tiempo real". Abre un stream Server-Sent Events: primero reproduce la foto vigente de las notificaciones del tenant que cumplen los filtros (equivalente a repetir GET /notifications sin paginar, acotado a 200 resultados), y luego continúa entregando cada cambio relevante mientras la conexión permanezca abierta. Una reconexión (ej. tras una caída de red) es, para el servidor, una solicitud nueva -- siempre reproduce la foto vigente antes de retomar el flujo en vivo, sin necesitar ningún encabezado ni parámetro de reanudación.
+         */
+        get: operations["subscribeToNotificationUpdates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notifications:sendBatch": {
         parameters: {
             query?: never;
@@ -88,6 +108,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar los canales del catálogo y cómo se enrutan
+         * @description CU-07 (lectura). Devuelve los canales que el enrutamiento está usando en este momento, cada uno con sus proveedores en orden de preferencia y el estado de cada proveedor. Hoy el despacho usa solo el proveedor en la posición 1; los demás se listan en su orden pero no se usan como respaldo automático. El catálogo es del despliegue, no del tenant: la respuesta es la misma para cualquier X-Tenant-Id. Un cambio guardado en el catálogo aparece aquí en el mismo refresco en que el enrutamiento empieza a usarlo. Ningún campo contiene el valor de una credencial.
+         */
+        get: operations["listChannels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar los proveedores, su estado y dónde se usan
+         * @description CU-08 (lectura). Devuelve la unión de los proveedores con adaptador en este despliegue y los que nombra el catálogo, cada uno con su estado y los canales en que aparece. MISSING_ADAPTER indica que el catálogo nombra un proveedor para el que el despliegue no tiene adaptador. El estado de habilitación es el de configuración de la réplica que responde, no la salud actual del proveedor. Misma respuesta para cualquier X-Tenant-Id; ningún campo contiene el valor de una credencial.
+         */
+        get: operations["listProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/channels:register": {
         parameters: {
             query?: never;
@@ -99,7 +159,7 @@ export interface paths {
         put?: never;
         /**
          * Registrar o actualizar un canal
-         * @description CU-07. Requiere permiso de ADMINISTRADOR. Da de alta el canal en el catálogo, sin desplegar código (RF-19). Si el canal ya existe, esta misma operación lo actualiza. Bloqueado hasta que exista el catálogo dinámico (Fase 6) -- hoy el catálogo es estático en application.yml.
+         * @description CU-07. Requiere permiso de ADMINISTRADOR. Da de alta el canal en el catálogo, sin desplegar código (RF-19). Si el canal ya existe, esta misma operación lo actualiza. Bloqueado: el catálogo dinámico ya existe, pero su escritura por API aún no está habilitada.
          */
         post: operations["registerChannel"];
         delete?: never;
@@ -179,7 +239,7 @@ export interface components {
              */
             externalId: string;
             /**
-             * @description Canal registrado en el catálogo (hoy solo EMAIL está configurado).
+             * @description Canal registrado en el catálogo. La configuración por defecto declara EMAIL, SMS y PUSH.
              * @example EMAIL
              */
             channelType: string;
@@ -189,16 +249,19 @@ export interface components {
              */
             recipientId: string;
             /**
-             * @description Dirección concreta del canal usado en este envío (email, teléfono, etc.).
+             * @description Dirección concreta del canal usado en este envío (email, teléfono, etc.). En SMS es un número en formato internacional (signo +, código de país y número, ej. +573001234567); un número sin ese formato termina en FAILED sin enviarse. En PUSH es el identificador de dispositivo que el proveedor de push emitió a la aplicación cliente (ej. device-token-demo-1234); se trata como texto opaco y no se valida su forma: un identificador inválido o caducado termina en FAILED sin reintentos.
              * @example alice@example.com
              */
             recipientAddress: string;
             /**
-             * @description Opcional -- algunos canales (ej. SMS) no lo usan.
+             * @description Opcional -- algunos canales (ej. SMS) no lo usan. En SMS se admite y se ignora: no se envía ni se antepone al cuerpo. En PUSH es el título visible, opcional, de hasta 100 caracteres.
              * @example Bienvenida
              */
             subject?: string | null;
-            /** @example Hola Alice, tu pedido fue confirmado. */
+            /**
+             * @description Cuerpo de la notificación. La longitud máxima la fija la forma de contenido del canal en el catálogo; en SMS son 160 caracteres y en PUSH 900 por defecto. Un contenido más largo se rechaza con 400 y nunca se trunca.
+             * @example Hola Alice, tu pedido fue confirmado.
+             */
             body: string;
             priority: components["schemas"]["Priority"];
         };
@@ -239,6 +302,15 @@ export interface components {
             providerId?: string | null;
             /** Format: date-time */
             lastUpdatedAt?: string;
+        };
+        NotificationSearchResponse: {
+            items: components["schemas"]["NotificationHistoryItem"][];
+            /** @description Tamaño de página efectivamente aplicado. */
+            limit: number;
+            /** @description Offset efectivamente aplicado. */
+            offset: number;
+            /** @description true si existen más resultados después de esta página. */
+            hasNext: boolean;
         };
         NotificationHistoryItem: {
             /** Format: uuid */
@@ -298,6 +370,49 @@ export interface components {
             /** @description Ignorado si optedOutAll es true. */
             acceptedChannels?: string[];
         };
+        /**
+         * @description ENABLED: tiene adaptador y su configuración está completa. DISABLED: tiene adaptador pero le falta o tiene mal formada una credencial (ver statusReason). MISSING_ADAPTER: el catálogo lo nombra pero el despliegue no tiene adaptador para él.
+         * @enum {string}
+         */
+        ProviderStatus: "ENABLED" | "DISABLED" | "MISSING_ADAPTER";
+        ChannelCatalogResponse: {
+            items: components["schemas"]["ChannelItem"][];
+        };
+        ChannelItem: {
+            /** @example EMAIL */
+            channelType: string;
+            /** @description Forma de contenido (JSON Schema como texto) tal como está guardada. Nulo si el canal no declara ninguna. */
+            contentSchema: string | null;
+            /** @description En orden de preferencia. */
+            providers: components["schemas"]["ChannelProviderItem"][];
+        };
+        ChannelProviderItem: {
+            /** @example simulated */
+            providerId: string;
+            /** @description 1 = preferente, el único que usa hoy el despacho. */
+            preferenceOrder: number;
+            status: components["schemas"]["ProviderStatus"];
+            /**
+             * @description Nulo cuando status es ENABLED. Nombra la configuración ausente o mal formada, nunca su valor.
+             * @example missing notification.provider.twilio.account-sid (TWILIO_ACCOUNT_SID)
+             */
+            statusReason: string | null;
+        };
+        ProviderCatalogResponse: {
+            items: components["schemas"]["ProviderItem"][];
+        };
+        ProviderItem: {
+            /** @example twilio */
+            providerId: string;
+            status: components["schemas"]["ProviderStatus"];
+            /** @description Nulo cuando status es ENABLED. Nombra la configuración ausente o mal formada, nunca su valor. */
+            statusReason: string | null;
+            /** @description Canales que nombran a este proveedor, con su posición en cada uno. Vacío si ninguno. */
+            channels: {
+                channelType: string;
+                preferenceOrder: number;
+            }[];
+        };
         ErrorResponse: {
             message?: string;
         };
@@ -305,6 +420,14 @@ export interface components {
         Priority: "LOW" | "NORMAL" | "HIGH";
         /** @enum {string} */
         NotificationStatus: "PENDING" | "IN_PROCESS" | "DELIVERED" | "RECOVERABLE" | "FAILED" | "DISCARDED";
+        NotificationLiveUpdate: {
+            /**
+             * @description UPSERT: la notificación cumple los filtros activos, el dashboard debe mostrarla/actualizarla. REMOVE: dejó de cumplirlos, el dashboard debe quitarla de la vista visible.
+             * @enum {string}
+             */
+            action: "UPSERT" | "REMOVE";
+            notification: components["schemas"]["NotificationHistoryItem"];
+        };
     };
     responses: never;
     parameters: {
@@ -331,6 +454,10 @@ export interface operations {
                 from?: string;
                 /** @description Fecha/hora máxima de aceptación (inclusive). */
                 to?: string;
+                /** @description Tamaño de página. Default 50, máximo 200. */
+                limit?: number;
+                /** @description Posición inicial dentro del conjunto de resultados. Default 0. */
+                offset?: number;
             };
             header: {
                 /** @description Identificador del tenant solicitante. Placeholder mientras CU-10 (autenticación) sigue bloqueado por DEP-01 -- se reemplazará por la identidad resuelta desde el token una vez se cierre esa dependencia con el equipo de Seguridad. */
@@ -341,13 +468,22 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Lista de notificaciones que cumplen el criterio (vacía si no hay resultados). */
+            /** @description Página de notificaciones que cumplen el criterio (items vacío si no hay resultados). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["NotificationHistoryItem"][];
+                    "application/json": components["schemas"]["NotificationSearchResponse"];
+                };
+            };
+            /** @description Parámetros inválidos -- from posterior a to, o limit/offset fuera de su rango válido. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -384,6 +520,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    subscribeToNotificationUpdates: {
+        parameters: {
+            query?: {
+                recipientId?: string;
+                channelType?: string;
+                status?: components["schemas"]["NotificationStatus"];
+                /** @description Fecha/hora mínima de aceptación (inclusive). Mismo campo que en la búsqueda. */
+                from?: string;
+                /** @description Fecha/hora máxima de aceptación (inclusive). Mismo campo que en la búsqueda. */
+                to?: string;
+            };
+            header: {
+                /** @description Identificador del tenant solicitante. Placeholder mientras CU-10 (autenticación) sigue bloqueado por DEP-01 -- se reemplazará por la identidad resuelta desde el token una vez se cierre esa dependencia con el equipo de Seguridad. */
+                "X-Tenant-Id": components["parameters"]["TenantId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stream Server-Sent Events. Cada evento `data` es un `NotificationLiveUpdate`. La conexión permanece abierta hasta que el cliente la cierra; el servidor intercala comentarios de keep-alive periódicos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["NotificationLiveUpdate"];
                 };
             };
         };
@@ -485,6 +652,70 @@ export interface operations {
             };
             /** @description No existe una notificación con ese id para este tenant. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listChannels: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Identificador del tenant solicitante. Placeholder mientras CU-10 (autenticación) sigue bloqueado por DEP-01 -- se reemplazará por la identidad resuelta desde el token una vez se cierre esa dependencia con el equipo de Seguridad. */
+                "X-Tenant-Id": components["parameters"]["TenantId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Canales ordenados por channelType (items vacío si el catálogo está vacío). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelCatalogResponse"];
+                };
+            };
+            /** @description Falta el X-Tenant-Id o está vacío. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listProviders: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Identificador del tenant solicitante. Placeholder mientras CU-10 (autenticación) sigue bloqueado por DEP-01 -- se reemplazará por la identidad resuelta desde el token una vez se cierre esa dependencia con el equipo de Seguridad. */
+                "X-Tenant-Id": components["parameters"]["TenantId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Proveedores ordenados por providerId. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderCatalogResponse"];
+                };
+            };
+            /** @description Falta el X-Tenant-Id o está vacío. */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
