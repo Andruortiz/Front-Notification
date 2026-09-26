@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import Listado from './pages/Listado.tsx';
 import Detalle from './pages/Detalle.tsx';
 import Catalogo from './pages/Catalogo.tsx';
+import CatalogoDetalle from './pages/CatalogoDetalle.tsx';
 import Layout from './components/Layout.tsx';
 
 export const router = createBrowserRouter([
@@ -11,6 +12,7 @@ export const router = createBrowserRouter([
             { path: '/', element: <Listado /> },
             { path: '/notificaciones/:id', element: <Detalle /> },
             { path: '/catalogo', element: <Catalogo /> },
+            { path: '/catalogo/:channelType', element: <CatalogoDetalle /> },
         ],
     },
 ]);

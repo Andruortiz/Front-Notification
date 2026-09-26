@@ -402,3 +402,270 @@ code {
     border-color: var(--status-failed-bg);
     background: var(--status-failed-bg);
 }
+
+/* Catalog */
+
+.catalog-section {
+    margin-top: 32px;
+}
+
+.catalog-section + .catalog-section {
+    margin-top: 40px;
+}
+
+.catalog-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.catalog-section-header p {
+    color: var(--text);
+    font-size: 13px;
+    margin-top: 2px;
+}
+
+.catalog-section-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg-subtle);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Channels */
+
+.catalog-channel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.catalog-channel-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    background: var(--bg);
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.catalog-channel-card:hover {
+    border-color: var(--accent-border);
+    box-shadow: var(--shadow);
+}
+
+.catalog-channel-header {
+    margin-bottom: 16px;
+}
+
+.catalog-channel-header h3 {
+    margin-bottom: 2px;
+    font-size: 16px;
+}
+
+.catalog-provider-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.catalog-provider-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 7px;
+    background: var(--bg-subtle);
+}
+
+.catalog-provider-row strong {
+    display: block;
+    color: var(--text-h);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.catalog-provider-preference {
+    display: block;
+    margin-top: 2px;
+    color: var(--text);
+    font-size: 11px;
+}
+
+.catalog-status-reason {
+    display: block;
+    margin-top: 2px;
+    color: var(--status-failed-text);
+    font-size: 11px;
+}
+
+/* Providers */
+
+.catalog-provider-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 16px;
+}
+
+.catalog-provider-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    background: var(--bg);
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.catalog-provider-card:hover {
+    border-color: var(--accent-border);
+    box-shadow: var(--shadow);
+}
+
+.catalog-provider-card h3 {
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+.catalog-provider-channels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 16px;
+}
+
+.catalog-channel-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg-subtle);
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 600;
+}
+.catalog-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15px;
+    white-space: nowrap;
+}
+
+.catalog-status-badge--enabled {
+    background: var(--status-delivered-bg);
+    color: var(--status-delivered-text);
+}
+
+.catalog-status-badge--disabled {
+    background: var(--status-pending-bg);
+    color: var(--status-pending-text);
+}
+
+.catalog-status-badge--missing_adapter {
+    background: var(--status-recoverable-bg);
+    color: var(--status-recoverable-text);
+}
+
+.catalog-channel-card--link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+
+.catalog-channel-card--link:hover {
+    color: inherit;
+}
+
+.catalog-back-link {
+    display: inline-block;
+    margin-bottom: 16px;
+    color: var(--text);
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.catalog-back-link:hover {
+    color: var(--text-h);
+}
+
+.catalog-detail-section {
+    margin-top: 32px;
+}
+
+.catalog-detail-header {
+    margin-bottom: 16px;
+}
+
+.catalog-detail-header p {
+    color: var(--text);
+    font-size: 13px;
+}
+
+.catalog-detail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.catalog-detail-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+}
+
+.catalog-detail-card-info {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.catalog-detail-card-info h3 {
+    margin-bottom: 4px;
+}
+
+.catalog-detail-card-action {
+    flex-shrink: 0;
+}
+
+.catalog-action-button {
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg);
+    color: var(--text-h);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.catalog-action-button--danger {
+    color: var(--status-failed-text);
+    border-color: var(--status-failed-bg);
+}
+
+.catalog-action-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
