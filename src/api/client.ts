@@ -12,5 +12,5 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     if (!res.ok) {
         throw new Error(`API error ${res.status}`);
     }
-    return res.json();
+    return (await res.json()) as T;
 }
