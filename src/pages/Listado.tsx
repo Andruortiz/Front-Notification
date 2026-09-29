@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../api/client';
 import type { components } from '../api/schema';
 import StatusBadge from '../components/StatusBadge';
-import LiveConnectionBadge from '../components/LiveConnectionBadge';
 import { useNotificationsLiveFeed } from '../hooks/useNotificationsLiveFeed';
 
 type NotificationSearchResponse = components['schemas']['NotificationSearchResponse'];
@@ -20,15 +19,12 @@ export default function Listado() {
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
     });
-    const connectionState = useNotificationsLiveFeed();
+    useNotificationsLiveFeed();
 
     return (
         <div>
             <div className="page-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <h1 style={{ marginBottom: 0 }}>Notificaciones</h1>
-                    <LiveConnectionBadge state={connectionState} />
-                </div>
+                <h1>Notificaciones</h1>
                 <p className="page-subtitle">
                     Historial de notificaciones aceptadas por el sistema.
                 </p>

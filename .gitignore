@@ -25,3 +25,6 @@ dist-ssr
 
 #Variables de entorno
 .env
+
+# Permisos locales de Claude Code (no compartir)
+.claude/settings.local.json

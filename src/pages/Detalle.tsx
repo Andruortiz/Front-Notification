@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../api/client';
 import type { components } from '../api/schema';
 import StatusBadge from '../components/StatusBadge';
-import LiveConnectionBadge from '../components/LiveConnectionBadge';
 import { useNotificationLiveStatus } from '../hooks/useNotificationLiveStatus';
 
 type NotificationStatusResponse = components['schemas']['NotificationStatusResponse'];
@@ -16,7 +15,7 @@ export default function Detalle() {
         queryFn: () => apiFetch<NotificationStatusResponse>(`/notifications/${id}`),
         enabled: Boolean(id),
     });
-    const connectionState = useNotificationLiveStatus(id);
+    useNotificationLiveStatus(id);
 
     return (
         <div>
@@ -45,7 +44,6 @@ export default function Detalle() {
                     >
                         <h1 style={{ marginBottom: 0 }}>Detalle de notificación</h1>
                         <StatusBadge status={data.status} />
-                        <LiveConnectionBadge state={connectionState} />
                     </div>
                     <dl className="field-grid">
                         <dt>ID</dt>

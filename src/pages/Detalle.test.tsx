@@ -40,15 +40,16 @@ describe('Detalle', () => {
         renderDetalle('notif-1');
 
         expect(await screen.findByText('Pendiente')).toBeInTheDocument();
-        await waitFor(() => expect(screen.getByText('En vivo')).toBeInTheDocument());
 
-        emitLiveUpdate({
-            action: 'UPSERT',
-            notification: notificationHistoryItem({
-                notificationId: 'notif-1',
-                status: 'DELIVERED',
+        await waitFor(() =>
+            emitLiveUpdate({
+                action: 'UPSERT',
+                notification: notificationHistoryItem({
+                    notificationId: 'notif-1',
+                    status: 'DELIVERED',
+                }),
             }),
-        });
+        );
 
         expect(await screen.findByText('Entregada')).toBeInTheDocument();
         expect(requestCount).toBe(2);
