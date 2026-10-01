@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
@@ -407,16 +407,17 @@ describe('NuevaNotificacion (adjuntos)', () => {
         expect(sent[0].attachments?.map((item) => item.fileName)).toEqual(['dos.pdf']);
     });
 
-    it('en un canal que no declara adjuntos el botón está deshabilitado y lo explica', async () => {
+    it('en un canal que no declara adjuntos no muestra la opción de adjuntar', async () => {
         renderPage();
         const user = userEvent.setup();
         await user.selectOptions(await screen.findByLabelText('Canal'), 'SMS');
 
-        expect(screen.getByRole('button', { name: 'Adjuntar archivos' })).toBeDisabled();
-        expect(screen.getByText('Este canal no admite archivos adjuntos.')).toBeInTheDocument();
+        expect(await screen.findByLabelText('Número de teléfono')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Adjuntar archivos' })).not.toBeInTheDocument();
+        expect(screen.queryByText('Archivos adjuntos (opcional)')).not.toBeInTheDocument();
     });
 
-    it('si cambia a un canal sin adjuntos con archivos elegidos, bloquea el envío', async () => {
+    it('si cambia a un canal sin adjuntos descarta los archivos elegidos y envía sin ellos', async () => {
         const sent: SentNotification[] = [];
         server.use(acceptNotifications(sent));
 
@@ -429,10 +430,8 @@ describe('NuevaNotificacion (adjuntos)', () => {
         await user.type(screen.getByLabelText('Número de teléfono'), '+573001234567');
         await user.click(screen.getByRole('button', { name: 'Enviar' }));
 
-        expect(
-            await screen.findByText(/Quitá los archivos o elegí otro canal/),
-        ).toBeInTheDocument();
-        expect(sent).toHaveLength(0);
+        await waitFor(() => expect(sent).toHaveLength(1));
+        expect(sent[0].attachments ?? []).toHaveLength(0);
     });
 
     it('con varios destinatarios envía una notificación por destinatario y sube el archivo una vez', async () => {

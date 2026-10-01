@@ -43,53 +43,55 @@ export default function Detalle() {
             )}
 
             {data && (
-                <div className="card">
-                    <div
-                        style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}
-                    >
-                        <h1 style={{ marginBottom: 0 }}>Detalle de notificación</h1>
-                        <StatusBadge status={data.status} />
-                        <LiveConnectionBadge state={connectionState} />
+                <>
+                    <div className="page-header">
+                        <h1>Detalle de notificación</h1>
                     </div>
-                    <dl className="field-grid">
-                        <dt>ID</dt>
-                        <dd>
-                            <code>{data.notificationId}</code>
-                        </dd>
-                        <dt>Canal</dt>
-                        <dd>{data.channelType}</dd>
-                        <dt>Proveedor</dt>
-                        <dd>{data.providerId ?? 'sin intento todavía'}</dd>
-                        <dt>Última actualización</dt>
-                        <dd>
-                            {data.lastUpdatedAt
-                                ? new Date(data.lastUpdatedAt).toLocaleString()
-                                : 'sin datos'}
-                        </dd>
-                    </dl>
-
-                    {retryMutation.isError && (
-                        <div
-                            role="alert"
-                            className="state-message state-message--error"
-                            style={{ marginTop: 16 }}
-                        >
-                            {translateRetryError(retryMutation.error)}
+                    <div className="card card--flush">
+                        <div className="detail-toolbar">
+                            <div className="detail-statuses">
+                                <StatusBadge status={data.status} />
+                                <LiveConnectionBadge state={connectionState} />
+                            </div>
+                            {data.status && RETRYABLE_STATUSES.has(data.status) && (
+                                <button
+                                    type="button"
+                                    className="button"
+                                    disabled={retryMutation.isPending}
+                                    onClick={() => retryMutation.mutate()}
+                                >
+                                    {retryMutation.isPending ? 'Reintentando...' : 'Reintentar'}
+                                </button>
+                            )}
                         </div>
-                    )}
+                        <dl className="field-grid">
+                            <dt>ID</dt>
+                            <dd>
+                                <code>{data.notificationId}</code>
+                            </dd>
+                            <dt>Canal</dt>
+                            <dd>{data.channelType}</dd>
+                            <dt>Proveedor</dt>
+                            <dd>{data.providerId ?? 'sin intento todavía'}</dd>
+                            <dt>Última actualización</dt>
+                            <dd>
+                                {data.lastUpdatedAt
+                                    ? new Date(data.lastUpdatedAt).toLocaleString()
+                                    : 'sin datos'}
+                            </dd>
+                        </dl>
 
-                    {data.status && RETRYABLE_STATUSES.has(data.status) && (
-                        <button
-                            type="button"
-                            className="catalog-action-button"
-                            style={{ marginTop: 16 }}
-                            disabled={retryMutation.isPending}
-                            onClick={() => retryMutation.mutate()}
-                        >
-                            {retryMutation.isPending ? 'Reintentando...' : 'Reintentar'}
-                        </button>
-                    )}
-                </div>
+                        {retryMutation.isError && (
+                            <div
+                                role="alert"
+                                className="state-message state-message--error form-alert"
+                                style={{ margin: 20 }}
+                            >
+                                {translateRetryError(retryMutation.error)}
+                            </div>
+                        )}
+                    </div>
+                </>
             )}
         </div>
     );

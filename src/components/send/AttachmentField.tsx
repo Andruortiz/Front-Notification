@@ -20,6 +20,10 @@ export default function AttachmentField({
     const [dialogOpen, setDialogOpen] = useState(false);
     const supported = rules !== null && maxFileCount(rules) > 0;
 
+    if (!supported) {
+        return null;
+    }
+
     return (
         <div className="form-field">
             <span id="send-attachment-label" className="form-label">
@@ -30,7 +34,7 @@ export default function AttachmentField({
                     type="button"
                     className="catalog-action-button"
                     aria-describedby="send-attachment-hint"
-                    disabled={disabled || !supported}
+                    disabled={disabled}
                     onClick={() => setDialogOpen(true)}
                 >
                     {files.length > 0 ? 'Cambiar archivos' : 'Adjuntar archivos'}
@@ -57,16 +61,14 @@ export default function AttachmentField({
                 </ul>
             )}
             <p id="send-attachment-hint" className="field-hint">
-                {supported
-                    ? `Se abre una ventana para elegir hasta ${maxFileCount(rules)} archivos.`
-                    : 'Este canal no admite archivos adjuntos.'}
+                {`Se abre una ventana para elegir hasta ${maxFileCount(rules)} archivos.`}
             </p>
             {error && (
                 <p className="field-error" role="alert">
                     {error}
                 </p>
             )}
-            {dialogOpen && supported && rules && (
+            {dialogOpen && rules && (
                 <AttachmentDialog
                     files={files}
                     rules={rules}
