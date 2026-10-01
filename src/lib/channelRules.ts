@@ -94,13 +94,17 @@ export function readAttachmentRules(contentSchema: string | null): ChannelAttach
     }
     try {
         const parsed = JSON.parse(contentSchema) as {
-            properties?: { attachments?: AttachmentsSchema };
+            properties?: {
+                attachments?: AttachmentsSchema;
+                attachmentsTotalBytes?: { maximum?: unknown };
+            };
         };
         const attachments = parsed.properties?.attachments;
         if (!attachments) {
             return null;
         }
         const contentTypes = attachments.items?.properties?.contentType?.enum;
+        const maxTotal = parsed.properties?.attachmentsTotalBytes?.maximum;
         const maxSize = attachments.items?.properties?.sizeBytes?.maximum;
         return {
             maxItems: typeof attachments.maxItems === 'number' ? attachments.maxItems : Infinity,
@@ -108,6 +112,7 @@ export function readAttachmentRules(contentSchema: string | null): ChannelAttach
                 ? contentTypes.filter((type): type is string => typeof type === 'string')
                 : null,
             maxSizeBytes: typeof maxSize === 'number' ? maxSize : null,
+            maxTotalBytes: typeof maxTotal === 'number' ? maxTotal : null,
         };
     } catch {
         return null;
