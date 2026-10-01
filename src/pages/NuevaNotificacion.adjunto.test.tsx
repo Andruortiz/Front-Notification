@@ -9,6 +9,13 @@ import { sendNotificationResponse } from '../test/handlers/notifications';
 import { server } from '../test/server';
 import type { components } from '../api/schema';
 
+async function typeSubject(user: ReturnType<typeof userEvent.setup>) {
+    const subject = screen.queryByLabelText(/^Asunto/);
+    if (subject) {
+        await user.type(subject, 'Asunto de prueba');
+    }
+}
+
 type ChannelCatalogResponse = components['schemas']['ChannelCatalogResponse'];
 
 const EMAIL_SCHEMA = JSON.stringify({
@@ -59,6 +66,7 @@ type User = ReturnType<typeof userEvent.setup>;
 async function fillIndividual(user: User) {
     await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
     await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
+    await typeSubject(user);
     await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
 }
 
@@ -442,6 +450,7 @@ describe('NuevaNotificacion (adjuntos)', () => {
             screen.getByLabelText('Correo electrónico'),
             'alice@example.com, bob@example.com',
         );
+        await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola');
         await attachViaDialog(user, bigPdf());
         await user.click(screen.getByRole('button', { name: 'Enviar' }));

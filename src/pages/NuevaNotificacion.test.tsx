@@ -13,6 +13,13 @@ import {
 import { server } from '../test/server';
 import type { components } from '../api/schema';
 
+async function typeSubject(user: ReturnType<typeof userEvent.setup>) {
+    const subject = screen.queryByLabelText(/^Asunto/);
+    if (subject) {
+        await user.type(subject, 'Asunto de prueba');
+    }
+}
+
 type ChannelCatalogResponse = components['schemas']['ChannelCatalogResponse'];
 
 function channelCatalog(): ChannelCatalogResponse {
@@ -84,6 +91,7 @@ describe('NuevaNotificacion (individual)', () => {
 
         await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
         await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
+        await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
         await user.click(screen.getByRole('button', { name: 'Enviar' }));
 
@@ -105,6 +113,7 @@ describe('NuevaNotificacion (individual)', () => {
         const user = userEvent.setup();
         await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
         await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
+        await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
         await user.click(screen.getByRole('button', { name: 'Enviar' }));
 
@@ -122,6 +131,7 @@ describe('NuevaNotificacion (individual)', () => {
         const user = userEvent.setup();
         await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
         await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
+        await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
         await user.click(screen.getByRole('button', { name: 'Enviar' }));
 
@@ -157,6 +167,7 @@ describe('NuevaNotificacion (individual)', () => {
         const user = userEvent.setup();
         await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
         await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
+        await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
 
         const submitButton = screen.getByRole('button', { name: 'Enviar' });
@@ -190,6 +201,7 @@ describe('NuevaNotificacion (individual)', () => {
         const user = userEvent.setup();
         await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
         await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
+        await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
 
         const submitButton = screen.getByRole('button', { name: 'Enviar' });
@@ -218,6 +230,7 @@ describe('NuevaNotificacion (individual)', () => {
         const user = userEvent.setup();
         await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
         await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
+        await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
         await user.click(screen.getByRole('button', { name: 'Enviar' }));
         await screen.findByText('Notificación aceptada');
@@ -225,6 +238,7 @@ describe('NuevaNotificacion (individual)', () => {
         await user.click(screen.getByRole('button', { name: 'Enviar otra' }));
         await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
         await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
+        await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
         await user.click(screen.getByRole('button', { name: 'Enviar' }));
         await screen.findByText('Notificación aceptada');
@@ -253,6 +267,7 @@ describe('NuevaNotificacion (varios destinatarios en el mismo campo)', () => {
 
     async function fillChannelAndMessage(user: ReturnType<typeof userEvent.setup>) {
         await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+        await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola a todos');
     }
 
@@ -267,7 +282,7 @@ describe('NuevaNotificacion (varios destinatarios en el mismo campo)', () => {
         );
 
         expect(screen.getByText('Repetida')).toBeInTheDocument();
-        expect(screen.getByText(/Formato inválido/)).toBeInTheDocument();
+        expect(screen.getByText(/Falta el símbolo @/)).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Enviar' }));
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
