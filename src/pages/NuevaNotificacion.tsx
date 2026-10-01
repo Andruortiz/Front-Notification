@@ -49,6 +49,7 @@ export default function NuevaNotificacion() {
 
     const channelFieldRef = useRef<HTMLSelectElement | null>(null);
     const addressFieldRef = useRef<HTMLTextAreaElement | null>(null);
+    const subjectFieldRef = useRef<HTMLInputElement | null>(null);
     const bodyFieldRef = useRef<HTMLTextAreaElement | null>(null);
 
     const { data: channelsData } = useQuery({
@@ -74,31 +75,70 @@ export default function NuevaNotificacion() {
     );
     const isBatch = parsedRecipients.entries.length > 1;
 
+    type ContentField = 'address' | 'subject' | 'body';
+
+    function computeErrors(overrides: Partial<Record<ContentField, string>> = {}): FormErrors {
+        const values = { address, subject, body, ...overrides };
+        const parsed = parseRecipients(values.address, channelType);
+        let result: FormErrors;
+        if (parsed.entries.length > 1 || parsed.exceedsMax) {
+            result = validateBatchDraft(
+                { channelType, subject: values.subject, body: values.body },
+                rules,
+            );
+            if (parsed.exceedsMax) {
+                result.address = `Hay ${parsed.totalCount} destinatarios; el máximo es ${MAX_RECIPIENTS}.`;
+            } else if (
+                rules &&
+                Object.keys(validateRecipientEntries(parsed.entries, rules)).length
+            ) {
+                result.address = 'Corregí las direcciones con formato inválido.';
+            }
+        } else {
+            const draft: SendDraft = {
+                channelType,
+                address: parsed.entries[0]?.address ?? '',
+                subject: values.subject,
+                body: values.body,
+                priority,
+            };
+            result = validateSendDraft(draft, rules);
+        }
+        const attachmentError = validateAttachments(attachments, rules);
+        if (attachmentError) {
+            result.attachment = attachmentError;
+        }
+        return result;
+    }
+
+    function revalidateField(
+        field: ContentField,
+        overrides: Partial<Record<ContentField, string>>,
+    ) {
+        setErrors((previous) =>
+            previous[field] ? { ...previous, [field]: computeErrors(overrides)[field] } : previous,
+        );
+    }
+
+    function validateFieldOnBlur(field: ContentField) {
+        setErrors((previous) => ({ ...previous, [field]: computeErrors()[field] }));
+    }
+
     function focusFirstError(fieldErrors: FormErrors) {
         if (fieldErrors.channelType) {
             channelFieldRef.current?.focus();
-        } else if ('address' in fieldErrors && fieldErrors.address) {
+        } else if (fieldErrors.address) {
             addressFieldRef.current?.focus();
+        } else if (fieldErrors.subject) {
+            subjectFieldRef.current?.focus();
         } else if (fieldErrors.body) {
             bodyFieldRef.current?.focus();
         }
     }
 
     function submitIndividual() {
-        const single = parsedRecipients.entries[0];
-        const normalizedAddress = single?.address ?? '';
-        const draft: SendDraft = {
-            channelType,
-            address: single?.raw ?? '',
-            subject,
-            body,
-            priority,
-        };
-        const validationErrors: FormErrors = validateSendDraft(draft, rules);
-        const attachmentError = validateAttachments(attachments, rules);
-        if (attachmentError) {
-            validationErrors.attachment = attachmentError;
-        }
+        const normalizedAddress = parsedRecipients.entries[0]?.address ?? '';
+        const validationErrors = computeErrors();
         setErrors(validationErrors);
         if (Object.keys(validationErrors).length > 0) {
             focusFirstError(validationErrors);
@@ -122,7 +162,8 @@ export default function NuevaNotificacion() {
                     channelType,
                     recipientId: normalizedAddress,
                     recipientAddress: normalizedAddress,
-                    subject: rules?.subject === 'hidden' || !subject.trim() ? undefined : subject,
+                    subject:
+                        rules?.subject === 'hidden' || !subject.trim() ? undefined : subject.trim(),
                     body,
                     priority,
                 },
@@ -133,19 +174,7 @@ export default function NuevaNotificacion() {
     }
 
     function submitBatch() {
-        const validationErrors: FormErrors = validateBatchDraft(
-            { channelType, subject, body },
-            rules,
-        );
-        const attachmentError = validateAttachments(attachments, rules);
-        if (attachmentError) {
-            validationErrors.attachment = attachmentError;
-        }
-        if (parsedRecipients.exceedsMax) {
-            validationErrors.address = `Hay ${parsedRecipients.totalCount} destinatarios; el máximo es ${MAX_RECIPIENTS}.`;
-        } else if (Object.keys(recipientRowErrors).length > 0) {
-            validationErrors.address = 'Corregí las direcciones con formato inválido.';
-        }
+        const validationErrors = computeErrors();
         setErrors(validationErrors);
         if (Object.keys(validationErrors).length > 0) {
             focusFirstError(validationErrors);
@@ -188,7 +217,7 @@ export default function NuevaNotificacion() {
 
         const outcomes = await batchSend(rows, {
             channelType,
-            subject: rules?.subject === 'hidden' || !subject.trim() ? undefined : subject,
+            subject: rules?.subject === 'hidden' || !subject.trim() ? undefined : subject.trim(),
             body,
             priority,
             attachments,
@@ -221,7 +250,7 @@ export default function NuevaNotificacion() {
 
         const resultsSubset = await batchSend(rows, {
             channelType,
-            subject: rules?.subject === 'hidden' || !subject.trim() ? undefined : subject,
+            subject: rules?.subject === 'hidden' || !subject.trim() ? undefined : subject.trim(),
             body,
             priority,
             attachments,
@@ -399,12 +428,26 @@ export default function NuevaNotificacion() {
                             body={body}
                             priority={priority}
                             errors={errors}
-                            onAddressChange={setAddress}
-                            onSubjectChange={setSubject}
-                            onBodyChange={setBody}
+                            onAddressChange={(value) => {
+                                setAddress(value);
+                                revalidateField('address', { address: value });
+                            }}
+                            onSubjectChange={(value) => {
+                                setSubject(value);
+                                revalidateField('subject', { subject: value });
+                                revalidateField('body', { subject: value });
+                            }}
+                            onBodyChange={(value) => {
+                                setBody(value);
+                                revalidateField('body', { body: value });
+                            }}
+                            onFieldBlur={validateFieldOnBlur}
                             onPriorityChange={setPriority}
                             addressRef={(el) => {
                                 addressFieldRef.current = el;
+                            }}
+                            subjectRef={(el) => {
+                                subjectFieldRef.current = el;
                             }}
                             bodyRef={(el) => {
                                 bodyFieldRef.current = el;

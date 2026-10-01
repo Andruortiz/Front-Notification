@@ -1,14 +1,16 @@
 import type { components } from '../api/schema';
 import type { ChannelAttachmentRules } from './attachment';
+import { validateEmail, validatePhoneNumber, validatePushToken } from './validators';
 
 type ChannelItem = components['schemas']['ChannelItem'];
 
-export type SubjectMode = 'hidden' | 'optional';
+export type SubjectMode = 'hidden' | 'optional' | 'required';
 
 export interface ChannelRules {
     addressLabel: string;
     addressExample: string;
     validateAddress: (address: string) => boolean;
+    addressError: (address: string) => string | null;
     subject: SubjectMode;
     subjectMax: number | null;
     bodyMax: number | null;
@@ -19,22 +21,25 @@ export interface ChannelRules {
 
 type BaseRules = Omit<ChannelRules, 'available' | 'unavailableReason' | 'attachments'>;
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const SMS_PATTERN = /^\+\d{6,15}$/;
+function addressRules(
+    addressError: (address: string) => string | null,
+): Pick<BaseRules, 'addressError' | 'validateAddress'> {
+    return { addressError, validateAddress: (address) => addressError(address) === null };
+}
 
 const KNOWN_RULES: Record<string, BaseRules> = {
     EMAIL: {
         addressLabel: 'Correo electrónico',
         addressExample: 'alice@example.com',
-        validateAddress: (address) => EMAIL_PATTERN.test(address.trim()),
-        subject: 'optional',
-        subjectMax: null,
+        ...addressRules(validateEmail),
+        subject: 'required',
+        subjectMax: 255,
         bodyMax: null,
     },
     SMS: {
         addressLabel: 'Número de teléfono',
         addressExample: '+573001234567',
-        validateAddress: (address) => SMS_PATTERN.test(address.trim()),
+        ...addressRules(validatePhoneNumber),
         subject: 'hidden',
         subjectMax: null,
         bodyMax: 160,
@@ -42,7 +47,7 @@ const KNOWN_RULES: Record<string, BaseRules> = {
     PUSH: {
         addressLabel: 'Token del dispositivo',
         addressExample: 'device-token-demo-1234',
-        validateAddress: (address) => address.trim().length > 0,
+        ...addressRules(validatePushToken),
         subject: 'optional',
         subjectMax: 100,
         bodyMax: 900,
@@ -52,7 +57,7 @@ const KNOWN_RULES: Record<string, BaseRules> = {
 const DEFAULT_RULES: BaseRules = {
     addressLabel: 'Dirección',
     addressExample: '',
-    validateAddress: (address) => address.trim().length > 0,
+    ...addressRules((address) => (address.trim().length > 0 ? null : 'Escribí una dirección.')),
     subject: 'optional',
     subjectMax: null,
     bodyMax: null,
