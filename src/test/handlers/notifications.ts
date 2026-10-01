@@ -5,6 +5,9 @@ type NotificationHistoryItem = components['schemas']['NotificationHistoryItem'];
 type NotificationSearchResponse = components['schemas']['NotificationSearchResponse'];
 type NotificationStatusResponse = components['schemas']['NotificationStatusResponse'];
 type NotificationLiveUpdate = components['schemas']['NotificationLiveUpdate'];
+type SendNotificationResponse = components['schemas']['SendNotificationResponse'];
+type BatchAcceptedResponse = components['schemas']['BatchAcceptedResponse'];
+type BatchItemResult = components['schemas']['BatchItemResult'];
 
 export const notificationHistoryItem = (
     overrides: Partial<NotificationHistoryItem> = {},
@@ -27,6 +30,31 @@ export const notificationStatusResponse = (
     channelType: 'EMAIL',
     providerId: null,
     lastUpdatedAt: '2026-09-25T10:00:00Z',
+    ...overrides,
+});
+
+export const sendNotificationResponse = (
+    overrides: Partial<SendNotificationResponse> = {},
+): SendNotificationResponse => ({
+    notificationId: 'notif-1',
+    status: 'PENDING',
+    duplicate: false,
+    ...overrides,
+});
+
+export const batchItemResult = (overrides: Partial<BatchItemResult> = {}): BatchItemResult => ({
+    externalId: 'panel-1-0',
+    outcome: 'ACCEPTED',
+    notificationId: 'notif-1',
+    rejectionReason: null,
+    ...overrides,
+});
+
+export const batchAcceptedResponse = (
+    overrides: Partial<BatchAcceptedResponse> = {},
+): BatchAcceptedResponse => ({
+    batchId: 'batch-1',
+    results: [],
     ...overrides,
 });
 
@@ -80,6 +108,22 @@ export const handlers = [
 
         return new HttpResponse(stream, {
             headers: { 'Content-Type': 'text/event-stream' },
+        });
+    }),
+
+    http.post('*/notifications', () => {
+        return HttpResponse.json(sendNotificationResponse(), { status: 202 });
+    }),
+
+    http.post('*/notifications:sendBatch', () => {
+        return HttpResponse.json(batchAcceptedResponse(), { status: 202 });
+    }),
+
+    http.post(/\/notifications\/([^/]+):retry$/, ({ request }) => {
+        const match = /\/notifications\/([^/]+):retry$/.exec(new URL(request.url).pathname);
+        const id = match ? decodeURIComponent(match[1]) : 'unknown';
+        return HttpResponse.json(notificationStatusResponse({ notificationId: id }), {
+            status: 202,
         });
     }),
 ];

@@ -24,14 +24,19 @@ export default function Listado() {
 
     return (
         <div>
-            <div className="page-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <h1 style={{ marginBottom: 0 }}>Notificaciones</h1>
-                    <LiveConnectionBadge state={connectionState} />
+            <div className="page-header page-header--with-action">
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <h1 style={{ marginBottom: 0 }}>Notificaciones</h1>
+                        <LiveConnectionBadge state={connectionState} />
+                    </div>
+                    <p className="page-subtitle">
+                        Historial de notificaciones aceptadas por el sistema.
+                    </p>
                 </div>
-                <p className="page-subtitle">
-                    Historial de notificaciones aceptadas por el sistema.
-                </p>
+                <Link className="catalog-action-button" to="/notificaciones/nueva">
+                    Nueva notificación
+                </Link>
             </div>
 
             {isLoading && <div className="state-message">Cargando notificaciones...</div>}
