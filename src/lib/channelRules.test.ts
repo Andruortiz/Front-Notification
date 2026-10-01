@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveChannelRules } from './channelRules';
+import { deriveChannelRules, readAttachmentRules } from './channelRules';
 import type { components } from '../api/schema';
 
 type ChannelItem = components['schemas']['ChannelItem'];
@@ -64,5 +64,44 @@ describe('deriveChannelRules', () => {
         );
         expect(rules.available).toBe(false);
         expect(rules.unavailableReason).toBe('falta credencial');
+    });
+});
+
+describe('readAttachmentRules', () => {
+    it('devuelve nulo si el canal no declara adjuntos', () => {
+        expect(readAttachmentRules(null)).toBeNull();
+        expect(readAttachmentRules('{"properties":{"body":{"type":"string"}}}')).toBeNull();
+        expect(readAttachmentRules('no es json')).toBeNull();
+    });
+
+    it('lee cantidad, tipos y tamaño máximo declarados', () => {
+        const schema = JSON.stringify({
+            properties: {
+                attachments: {
+                    type: 'array',
+                    maxItems: 2,
+                    items: {
+                        properties: {
+                            contentType: { enum: ['application/pdf', 'image/png'] },
+                            sizeBytes: { maximum: 2048 },
+                        },
+                    },
+                },
+            },
+        });
+
+        expect(readAttachmentRules(schema)).toEqual({
+            maxItems: 2,
+            contentTypes: ['application/pdf', 'image/png'],
+            maxSizeBytes: 2048,
+        });
+    });
+
+    it('sin tope declarado no limita tipos ni tamaño', () => {
+        expect(readAttachmentRules('{"properties":{"attachments":{"type":"array"}}}')).toEqual({
+            maxItems: Infinity,
+            contentTypes: null,
+            maxSizeBytes: null,
+        });
     });
 });

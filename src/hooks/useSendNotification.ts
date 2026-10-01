@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { sendNotification } from '../api/notifications';
 import { ApiError } from '../api/client';
-import { AttachmentError, prepareAttachment } from '../lib/attachmentUpload';
+import { AttachmentError, prepareAttachments } from '../lib/attachmentUpload';
 import type { components } from '../api/schema';
 
 type SendNotificationRequest = components['schemas']['SendNotificationRequest'];
@@ -10,13 +10,18 @@ export function useSendNotification() {
     return useMutation({
         mutationFn: async ({
             request,
-            attachment,
+            attachments,
         }: {
             request: SendNotificationRequest;
-            attachment?: File | null;
+            attachments?: File[];
         }) => {
-            const ref = attachment ? await prepareAttachment(attachment) : {};
-            return sendNotification({ ...request, ...ref });
+            if (!attachments || attachments.length === 0) {
+                return sendNotification(request);
+            }
+            return sendNotification({
+                ...request,
+                attachments: await prepareAttachments(attachments),
+            });
         },
     });
 }

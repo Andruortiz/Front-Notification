@@ -6,15 +6,11 @@ type SendNotificationResponse = components['schemas']['SendNotificationResponse'
 type SendNotificationBatchRequest = components['schemas']['SendNotificationBatchRequest'];
 type BatchAcceptedResponse = components['schemas']['BatchAcceptedResponse'];
 type NotificationStatusResponse = components['schemas']['NotificationStatusResponse'];
-
-/** Campos de adjunto: contenido embebido (hasta 1 MB) o referencia a una subida ya verificada. */
-export interface AttachmentRef {
-    attachment?: { fileName: string; contentType: string; contentBase64: string };
-    attachmentUploadId?: string;
-}
+type AttachmentUploadResponse = components['schemas']['AttachmentUploadResponse'];
+type IssueAttachmentUploadRequest = components['schemas']['IssueAttachmentUploadRequest'];
 
 export function sendNotification(
-    request: SendNotificationRequest & AttachmentRef,
+    request: SendNotificationRequest,
 ): Promise<SendNotificationResponse> {
     return apiFetch<SendNotificationResponse>('/notifications', {
         method: 'POST',
@@ -22,37 +18,26 @@ export function sendNotification(
     });
 }
 
-export interface AttachmentUploadTicket {
-    uploadId: string;
-    uploadUrl: string;
-}
-
-export interface AttachmentUploadStatus {
-    uploadId: string;
-    status: string;
-    rejectionReason?: string | null;
-}
-
-export function issueAttachmentUpload(request: {
-    fileName: string;
-    contentType: string;
-    sizeBytes: number;
-}): Promise<AttachmentUploadTicket> {
-    return apiFetch<AttachmentUploadTicket>('/attachment-uploads', {
+export function issueAttachmentUpload(
+    request: IssueAttachmentUploadRequest,
+): Promise<AttachmentUploadResponse> {
+    return apiFetch<AttachmentUploadResponse>('/attachment-uploads', {
         method: 'POST',
         body: JSON.stringify(request),
     });
 }
 
-export function completeAttachmentUpload(uploadId: string): Promise<AttachmentUploadStatus> {
-    return apiFetch<AttachmentUploadStatus>(
+export function completeAttachmentUpload(uploadId: string): Promise<AttachmentUploadResponse> {
+    return apiFetch<AttachmentUploadResponse>(
         `/attachment-uploads/${encodeURIComponent(uploadId)}:complete`,
         { method: 'POST' },
     );
 }
 
-export function getAttachmentUpload(uploadId: string): Promise<AttachmentUploadStatus> {
-    return apiFetch<AttachmentUploadStatus>(`/attachment-uploads/${encodeURIComponent(uploadId)}`);
+export function getAttachmentUpload(uploadId: string): Promise<AttachmentUploadResponse> {
+    return apiFetch<AttachmentUploadResponse>(
+        `/attachment-uploads/${encodeURIComponent(uploadId)}`,
+    );
 }
 
 export function sendNotificationBatch(

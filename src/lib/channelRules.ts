@@ -1,4 +1,5 @@
 import type { components } from '../api/schema';
+import type { ChannelAttachmentRules } from './attachment';
 
 type ChannelItem = components['schemas']['ChannelItem'];
 
@@ -13,9 +14,10 @@ export interface ChannelRules {
     bodyMax: number | null;
     available: boolean;
     unavailableReason: string | null;
+    attachments: ChannelAttachmentRules | null;
 }
 
-type BaseRules = Omit<ChannelRules, 'available' | 'unavailableReason'>;
+type BaseRules = Omit<ChannelRules, 'available' | 'unavailableReason' | 'attachments'>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SMS_PATTERN = /^\+\d{6,15}$/;
@@ -71,6 +73,42 @@ function readMaxLength(contentSchema: string | null, property: string): number |
     }
 }
 
+interface AttachmentsSchema {
+    maxItems?: unknown;
+    items?: {
+        properties?: {
+            contentType?: { enum?: unknown };
+            sizeBytes?: { maximum?: unknown };
+        };
+    };
+}
+
+export function readAttachmentRules(contentSchema: string | null): ChannelAttachmentRules | null {
+    if (!contentSchema) {
+        return null;
+    }
+    try {
+        const parsed = JSON.parse(contentSchema) as {
+            properties?: { attachments?: AttachmentsSchema };
+        };
+        const attachments = parsed.properties?.attachments;
+        if (!attachments) {
+            return null;
+        }
+        const contentTypes = attachments.items?.properties?.contentType?.enum;
+        const maxSize = attachments.items?.properties?.sizeBytes?.maximum;
+        return {
+            maxItems: typeof attachments.maxItems === 'number' ? attachments.maxItems : Infinity,
+            contentTypes: Array.isArray(contentTypes)
+                ? contentTypes.filter((type): type is string => typeof type === 'string')
+                : null,
+            maxSizeBytes: typeof maxSize === 'number' ? maxSize : null,
+        };
+    } catch {
+        return null;
+    }
+}
+
 export function deriveChannelRules(channel: ChannelItem): ChannelRules {
     const base = KNOWN_RULES[channel.channelType] ?? DEFAULT_RULES;
     const enabledProvider = channel.providers.find((provider) => provider.status === 'ENABLED');
@@ -85,5 +123,6 @@ export function deriveChannelRules(channel: ChannelItem): ChannelRules {
         subjectMax: readMaxLength(channel.contentSchema, 'subject') ?? base.subjectMax,
         available,
         unavailableReason,
+        attachments: readAttachmentRules(channel.contentSchema),
     };
 }

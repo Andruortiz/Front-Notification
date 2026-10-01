@@ -1,6 +1,10 @@
 import { useCallback, useState } from 'react';
-import { sendNotification, sendNotificationBatch, type AttachmentRef } from '../api/notifications';
-import { AttachmentError, prepareAttachment } from '../lib/attachmentUpload';
+import { sendNotification, sendNotificationBatch } from '../api/notifications';
+import {
+    AttachmentError,
+    prepareAttachments,
+    type AttachmentPayload,
+} from '../lib/attachmentUpload';
 import { ApiError } from '../api/client';
 import type { components } from '../api/schema';
 
@@ -28,7 +32,7 @@ export interface BatchSendMeta {
     subject?: string;
     body: string;
     priority: Priority;
-    attachment?: File | null;
+    attachments?: File[];
 }
 
 const CHUNK_SIZE = 200;
@@ -44,7 +48,7 @@ function chunk<T>(items: T[], size: number): T[][] {
 async function sendWithAttachment(
     row: BatchSendRow,
     meta: BatchSendMeta,
-    attachment: AttachmentRef,
+    attachments: AttachmentPayload[],
 ): Promise<SendOutcome> {
     try {
         const response = await sendNotification({
@@ -55,7 +59,7 @@ async function sendWithAttachment(
             subject: meta.subject,
             body: meta.body,
             priority: meta.priority,
-            ...attachment,
+            attachments,
         });
         return {
             address: row.address,
@@ -102,12 +106,10 @@ export async function performBatchSend(
     const sendable = rows.map((row, index) => ({ row, index })).filter(({ row }) => !row.skip);
     let sentCount = 0;
 
-    // Con adjunto se envía una notificación por destinatario. El adjunto se prepara una sola
-    // vez: embebido en Base64 (hasta 1 MB) o subido al storage y referenciado por uploadId.
-    if (meta.attachment) {
-        let ref: AttachmentRef;
+    if (meta.attachments && meta.attachments.length > 0) {
+        let payloads: AttachmentPayload[];
         try {
-            ref = await prepareAttachment(meta.attachment);
+            payloads = await prepareAttachments(meta.attachments);
         } catch (error) {
             const reason =
                 error instanceof AttachmentError
@@ -125,7 +127,7 @@ export async function performBatchSend(
             return results;
         }
         for (const { row, index } of sendable) {
-            results[index] = await sendWithAttachment(row, meta, ref);
+            results[index] = await sendWithAttachment(row, meta, payloads);
             sentCount += 1;
             onProgress?.(sentCount, sendable.length);
         }

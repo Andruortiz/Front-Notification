@@ -1,3 +1,4 @@
+import { validateAttachmentFile, validateAttachmentSet } from './attachment';
 import type { ChannelRules } from './channelRules';
 import type { RecipientEntry } from './recipients';
 
@@ -96,4 +97,20 @@ export function validateRecipientEntries(
         }
     });
     return errors;
+}
+
+export function validateAttachments(files: File[], rules: ChannelRules | undefined): string | null {
+    if (files.length === 0) {
+        return null;
+    }
+    if (!rules?.attachments) {
+        return 'Este canal no admite archivos adjuntos. Quitá los archivos o elegí otro canal.';
+    }
+    for (const file of files) {
+        const fileError = validateAttachmentFile(file, rules.attachments);
+        if (fileError) {
+            return `${file.name}: ${fileError}`;
+        }
+    }
+    return validateAttachmentSet(files, rules.attachments);
 }

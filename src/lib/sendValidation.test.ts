@@ -12,6 +12,7 @@ const emailRules: ChannelRules = {
     bodyMax: 20,
     available: true,
     unavailableReason: null,
+    attachments: null,
 };
 
 function draft(overrides: Partial<SendDraft> = {}): SendDraft {

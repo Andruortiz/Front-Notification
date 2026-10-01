@@ -3,11 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { getChannels } from '../api/catalog';
 import { deriveChannelRules } from '../lib/channelRules';
 import { parseRecipients, MAX_RECIPIENTS } from '../lib/recipients';
-import { attachmentFingerprint, validateAttachment } from '../lib/attachment';
+import { attachmentsFingerprint } from '../lib/attachment';
 import {
     validateSendDraft,
     validateBatchDraft,
     validateRecipientEntries,
+    validateAttachments,
     type SendDraft,
 } from '../lib/sendValidation';
 import { createSubmissionId, refreshSubmissionId, type SubmissionId } from '../lib/submissionId';
@@ -36,7 +37,7 @@ export default function NuevaNotificacion() {
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
     const [priority, setPriority] = useState<Priority>('NORMAL');
-    const [attachment, setAttachment] = useState<File | null>(null);
+    const [attachments, setAttachments] = useState<File[]>([]);
     const [errors, setErrors] = useState<FormErrors>({});
     const [result, setResult] = useState<SendNotificationResponse | null>(null);
     const [submission, setSubmission] = useState<SubmissionId | null>(null);
@@ -94,7 +95,7 @@ export default function NuevaNotificacion() {
             priority,
         };
         const validationErrors: FormErrors = validateSendDraft(draft, rules);
-        const attachmentError = attachment ? validateAttachment(attachment) : null;
+        const attachmentError = validateAttachments(attachments, rules);
         if (attachmentError) {
             validationErrors.attachment = attachmentError;
         }
@@ -110,7 +111,7 @@ export default function NuevaNotificacion() {
             subject,
             body,
             priority,
-            attachment: attachmentFingerprint(attachment),
+            attachment: attachmentsFingerprint(attachments),
         });
         setSubmission(nextSubmission);
 
@@ -125,7 +126,7 @@ export default function NuevaNotificacion() {
                     body,
                     priority,
                 },
-                attachment,
+                attachments,
             },
             { onSuccess: (data) => setResult(data) },
         );
@@ -136,7 +137,7 @@ export default function NuevaNotificacion() {
             { channelType, subject, body },
             rules,
         );
-        const attachmentError = attachment ? validateAttachment(attachment) : null;
+        const attachmentError = validateAttachments(attachments, rules);
         if (attachmentError) {
             validationErrors.attachment = attachmentError;
         }
@@ -169,7 +170,7 @@ export default function NuevaNotificacion() {
             subject,
             body,
             priority,
-            attachment: attachmentFingerprint(attachment),
+            attachment: attachmentsFingerprint(attachments),
         });
         const externalIds = parsedRecipients.entries.map(
             (_, index) => `${newSubmission.id}-${index}`,
@@ -190,7 +191,7 @@ export default function NuevaNotificacion() {
             subject: rules?.subject === 'hidden' || !subject.trim() ? undefined : subject,
             body,
             priority,
-            attachment,
+            attachments,
         });
         setBatchOutcomes(outcomes);
     }
@@ -223,7 +224,7 @@ export default function NuevaNotificacion() {
             subject: rules?.subject === 'hidden' || !subject.trim() ? undefined : subject,
             body,
             priority,
-            attachment,
+            attachments,
         });
 
         setBatchOutcomes((previous) => {
@@ -243,7 +244,7 @@ export default function NuevaNotificacion() {
         setBatchEntries(null);
         setBatchExternalIds(null);
         setBatchOutcomes(null);
-        setAttachment(null);
+        setAttachments([]);
         setAddress(EMPTY_DRAFT_FIELDS.address);
         setSubject(EMPTY_DRAFT_FIELDS.subject);
         setBody(EMPTY_DRAFT_FIELDS.body);
@@ -315,7 +316,7 @@ export default function NuevaNotificacion() {
         );
     }
 
-    const hasErrors = Object.keys(errors).length > 0;
+    const hasErrors = Object.values(errors).some(Boolean);
     const recipientsSummaryError = parsedRecipients.exceedsMax
         ? `Hay ${parsedRecipients.totalCount} destinatarios; el máximo es ${MAX_RECIPIENTS}.`
         : null;
@@ -411,11 +412,12 @@ export default function NuevaNotificacion() {
                             addressExtra={recipientsExtra}
                         />
                         <AttachmentField
-                            file={attachment}
+                            files={attachments}
+                            rules={rules?.attachments ?? null}
                             error={errors.attachment}
-                            channelType={channelType}
-                            onChange={(file) => {
-                                setAttachment(file);
+                            disabled={mutation.isPending || batchIsSending}
+                            onChange={(files) => {
+                                setAttachments(files);
                                 setErrors((prev) => ({ ...prev, attachment: undefined }));
                             }}
                         />
