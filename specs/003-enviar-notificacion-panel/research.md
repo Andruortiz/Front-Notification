@@ -29,11 +29,11 @@ canales conocidos (EMAIL, SMS, PUSH) y el `contentSchema` del catálogo cuando e
 Para un canal que ninguna fuente describe, el formulario se degrada a lo mínimo: dirección y mensaje
 obligatorios, asunto opcional, sin límite de longitud propio.
 
-| Canal | Dirección | Asunto | Mensaje |
-| ----- | --------- | ------ | ------- |
-| EMAIL | correo electrónico | opcional | límite del `contentSchema` si existe |
-| SMS   | internacional: `+`, código de país y número (ej. `+573001234567`) | no se pide (se ignora) | 160 caracteres |
-| PUSH  | token opaco, solo se exige que no esté vacío | opcional, hasta 100 caracteres (título) | 900 caracteres |
+| Canal | Dirección                                                         | Asunto                                  | Mensaje                              |
+| ----- | ----------------------------------------------------------------- | --------------------------------------- | ------------------------------------ |
+| EMAIL | correo electrónico                                                | opcional                                | límite del `contentSchema` si existe |
+| SMS   | internacional: `+`, código de país y número (ej. `+573001234567`) | no se pide (se ignora)                  | 160 caracteres                       |
+| PUSH  | token opaco, solo se exige que no esté vacío                      | opcional, hasta 100 caracteres (título) | 900 caracteres                       |
 
 **Rationale**: el contrato documenta estas reglas en la descripción de `SendNotificationRequest`,
 pero no las expone de forma tipada; `contentSchema` es JSON Schema como texto y puede ser nulo. El

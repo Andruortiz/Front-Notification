@@ -22,8 +22,8 @@ description: 'Task list for feature implementation'
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [X] T001 Confirmar que `src/api/schema.d.ts` ya declara `sendNotification`, `sendNotificationBatch`, `retryNotification` y `listChannels` (están); si el contrato del backend cambió, regenerar con `npm run generate:api`
-- [X] T002 [P] Confirmar que `tsc -b` y ESLint ya cubren `src/lib/` y `src/components/send/` sin configuración adicional (mismos `include` que el resto de `src/`)
+- [x] T001 Confirmar que `src/api/schema.d.ts` ya declara `sendNotification`, `sendNotificationBatch`, `retryNotification` y `listChannels` (están); si el contrato del backend cambió, regenerar con `npm run generate:api`
+- [x] T002 [P] Confirmar que `tsc -b` y ESLint ya cubren `src/lib/` y `src/components/send/` sin configuración adicional (mismos `include` que el resto de `src/`)
 
 **Checkpoint**: no hace falta ninguna dependencia nueva ni cambio de configuración antes de empezar.
 
@@ -33,14 +33,14 @@ description: 'Task list for feature implementation'
 
 **⚠️ CRITICAL**: ninguna historia de usuario empieza hasta terminar esta fase.
 
-- [X] T003 Extender `src/api/client.ts` con `ApiError` (`status`, `serverMessage`) que `apiFetch` lanza al recibir un error, leyendo `message` del cuerpo `ErrorResponse` cuando el `Content-Type` es JSON, sin cambiar el texto por defecto `API error <status>` que ya usan `Listado`/`Detalle`/`Catálogo` (research.md D1)
-- [X] T004 [P] Crear `src/api/notifications.ts` con `sendNotification(request)`, `sendNotificationBatch(request)` y `retryNotification(id)` sobre `apiFetch`, tipados con `SendNotificationRequest`, `SendNotificationResponse`, `SendNotificationBatchRequest`, `BatchAcceptedResponse` y `NotificationStatusResponse` de `schema.d.ts` (contracts/send-notifications-consumer.md)
-- [X] T005 [P] Crear `src/lib/channelRules.ts`: deriva de un `ChannelItem` sus reglas de formulario (`addressLabel`, `validateAddress`, `subject: 'hidden' | 'optional'`, `subjectMax`, `bodyMax`, `available`, `unavailableReason`), con las reglas conocidas de EMAIL/SMS/PUSH como base y degradación mínima para cualquier otro canal (research.md D2, D3)
-- [X] T006 [P] Crear `src/lib/recipients.ts`: parsea texto separado por saltos de línea, comas o punto y coma en una lista de direcciones; normaliza cada una según el canal (D4) para obtener `recipientId`; marca repetidas con `duplicateOf` y limita a 1000 sin procesar el exceso (research.md D6, D10)
-- [X] T007 [P] Crear `src/lib/sendValidation.ts`: valida un `SendDraft` individual y una lista de `RecipientEntry` contra `ChannelRules`, devolviendo un mapa de errores por campo/fila sin lanzar excepciones
-- [X] T008 [P] Crear `src/lib/submissionId.ts`: genera y memoriza `{ id, fingerprint }` con `crypto.randomUUID()` prefijado `panel-`, regenerando `id` solo cuando cambia la huella (canal, destinatarios normalizados, asunto, mensaje, prioridad) (research.md D5)
-- [X] T009 [P] Agregar a `src/test/handlers/notifications.ts` los handlers `http.post('*/notifications', ...)`, `http.post('*/notifications:sendBatch', ...)` y `http.post('*/notifications/:id:retry', ...)` con fábricas de respuesta (`sendNotificationResponse`, `batchAcceptedResponse`) reutilizables desde los tests de cada historia; confirmar que la ruta con `:retry` enruta bien con un id dinámico (research.md D12) y, si no, escapar el segmento
-- [X] T010 Confirmar que `npx tsc -b`, `npm run lint` y `npm run test` siguen pasando con los archivos nuevos de `src/lib/` y `src/api/notifications.ts`
+- [x] T003 Extender `src/api/client.ts` con `ApiError` (`status`, `serverMessage`) que `apiFetch` lanza al recibir un error, leyendo `message` del cuerpo `ErrorResponse` cuando el `Content-Type` es JSON, sin cambiar el texto por defecto `API error <status>` que ya usan `Listado`/`Detalle`/`Catálogo` (research.md D1)
+- [x] T004 [P] Crear `src/api/notifications.ts` con `sendNotification(request)`, `sendNotificationBatch(request)` y `retryNotification(id)` sobre `apiFetch`, tipados con `SendNotificationRequest`, `SendNotificationResponse`, `SendNotificationBatchRequest`, `BatchAcceptedResponse` y `NotificationStatusResponse` de `schema.d.ts` (contracts/send-notifications-consumer.md)
+- [x] T005 [P] Crear `src/lib/channelRules.ts`: deriva de un `ChannelItem` sus reglas de formulario (`addressLabel`, `validateAddress`, `subject: 'hidden' | 'optional'`, `subjectMax`, `bodyMax`, `available`, `unavailableReason`), con las reglas conocidas de EMAIL/SMS/PUSH como base y degradación mínima para cualquier otro canal (research.md D2, D3)
+- [x] T006 [P] Crear `src/lib/recipients.ts`: parsea texto separado por saltos de línea, comas o punto y coma en una lista de direcciones; normaliza cada una según el canal (D4) para obtener `recipientId`; marca repetidas con `duplicateOf` y limita a 1000 sin procesar el exceso (research.md D6, D10)
+- [x] T007 [P] Crear `src/lib/sendValidation.ts`: valida un `SendDraft` individual y una lista de `RecipientEntry` contra `ChannelRules`, devolviendo un mapa de errores por campo/fila sin lanzar excepciones
+- [x] T008 [P] Crear `src/lib/submissionId.ts`: genera y memoriza `{ id, fingerprint }` con `crypto.randomUUID()` prefijado `panel-`, regenerando `id` solo cuando cambia la huella (canal, destinatarios normalizados, asunto, mensaje, prioridad) (research.md D5)
+- [x] T009 [P] Agregar a `src/test/handlers/notifications.ts` los handlers `http.post('*/notifications', ...)`, `http.post('*/notifications:sendBatch', ...)` y `http.post('*/notifications/:id:retry', ...)` con fábricas de respuesta (`sendNotificationResponse`, `batchAcceptedResponse`) reutilizables desde los tests de cada historia; confirmar que la ruta con `:retry` enruta bien con un id dinámico (research.md D12) y, si no, escapar el segmento
+- [x] T010 Confirmar que `npx tsc -b`, `npm run lint` y `npm run test` siguen pasando con los archivos nuevos de `src/lib/` y `src/api/notifications.ts`
 
 **Checkpoint**: fundación lista — las historias de usuario pueden empezar.
 
@@ -54,20 +54,20 @@ description: 'Task list for feature implementation'
 
 ### Tests for User Story 1 ⚠️
 
-- [X] T011 [P] [US1] `src/lib/channelRules.test.ts`: reglas correctas para EMAIL, SMS y PUSH, y degradación mínima para un canal no conocido
-- [X] T012 [P] [US1] `src/lib/sendValidation.test.ts`: rechaza dirección con formato inválido por canal, mensaje sobre el límite del canal y campos vacíos; acepta un `SendDraft` válido
-- [X] T013 [P] [US1] `src/pages/NuevaNotificacion.test.tsx` (modo individual): flujo con MSW — envío aceptado muestra id y estado; envío con `duplicate: true` muestra "ya existía" y no un error; rechazo 400 muestra el mensaje del servidor y conserva lo escrito; cambiar de canal ajusta los campos visibles y el límite de caracteres
+- [x] T011 [P] [US1] `src/lib/channelRules.test.ts`: reglas correctas para EMAIL, SMS y PUSH, y degradación mínima para un canal no conocido
+- [x] T012 [P] [US1] `src/lib/sendValidation.test.ts`: rechaza dirección con formato inválido por canal, mensaje sobre el límite del canal y campos vacíos; acepta un `SendDraft` válido
+- [x] T013 [P] [US1] `src/pages/NuevaNotificacion.test.tsx` (modo individual): flujo con MSW — envío aceptado muestra id y estado; envío con `duplicate: true` muestra "ya existía" y no un error; rechazo 400 muestra el mensaje del servidor y conserva lo escrito; cambiar de canal ajusta los campos visibles y el límite de caracteres
 
 ### Implementation for User Story 1
 
-- [X] T014 [P] [US1] Crear `src/components/send/ChannelSelect.tsx`: lista los canales de `getChannels()` marcando como no seleccionable el que no tenga proveedor `ENABLED`, con su motivo (`ChannelRules.unavailableReason`)
-- [X] T015 [P] [US1] Crear `src/components/send/NotificationFields.tsx`: campos de dirección, asunto, mensaje y prioridad según `ChannelRules` del canal elegido, con contador de caracteres, `aria-invalid`/`aria-describedby` por campo y `aria-live="polite"` en el contador (FR-015)
-- [X] T016 [P] [US1] Crear `src/components/send/SendResultPanel.tsx`: muestra el resultado de un envío individual (aceptada con id y enlace al detalle, o "ya existía"), y un botón "Enviar otra" que reinicia el formulario con un `submissionId` nuevo
-- [X] T017 [US1] Crear `src/hooks/useSendNotification.ts`: `useMutation` sobre `sendNotification`, sin invalidar `['notifications']` (research.md D7); traduce `ApiError` a un mensaje para el operador (red, 400, 5xx) según contracts/send-notifications-consumer.md
-- [X] T018 [US1] Crear `src/pages/NuevaNotificacion.tsx` en modo individual: usa `ChannelSelect`, `NotificationFields`, `useSendValidation` (T007) y `useSendNotification`; bloquea el botón de enviar mientras la mutación está en curso (depende de T014-T017)
-- [X] T019 [US1] Registrar la ruta `/notificaciones/nueva` en `src/routes.tsx`, agregar el enlace "Nueva notificación" en `src/components/Layout.tsx` y el botón correspondiente en la cabecera de `src/pages/Listado.tsx`
-- [X] T020 [US1] Confirmar con el resumen `role="alert"` y el foco en el primer campo inválido que el formulario es utilizable solo con teclado (FR-015)
-- [X] T021 [US1] Correr `npm run build`, `npm run lint` y `npm run test` — deben pasar para esta historia
+- [x] T014 [P] [US1] Crear `src/components/send/ChannelSelect.tsx`: lista los canales de `getChannels()` marcando como no seleccionable el que no tenga proveedor `ENABLED`, con su motivo (`ChannelRules.unavailableReason`)
+- [x] T015 [P] [US1] Crear `src/components/send/NotificationFields.tsx`: campos de dirección, asunto, mensaje y prioridad según `ChannelRules` del canal elegido, con contador de caracteres, `aria-invalid`/`aria-describedby` por campo y `aria-live="polite"` en el contador (FR-015)
+- [x] T016 [P] [US1] Crear `src/components/send/SendResultPanel.tsx`: muestra el resultado de un envío individual (aceptada con id y enlace al detalle, o "ya existía"), y un botón "Enviar otra" que reinicia el formulario con un `submissionId` nuevo
+- [x] T017 [US1] Crear `src/hooks/useSendNotification.ts`: `useMutation` sobre `sendNotification`, sin invalidar `['notifications']` (research.md D7); traduce `ApiError` a un mensaje para el operador (red, 400, 5xx) según contracts/send-notifications-consumer.md
+- [x] T018 [US1] Crear `src/pages/NuevaNotificacion.tsx` en modo individual: usa `ChannelSelect`, `NotificationFields`, `useSendValidation` (T007) y `useSendNotification`; bloquea el botón de enviar mientras la mutación está en curso (depende de T014-T017)
+- [x] T019 [US1] Registrar la ruta `/notificaciones/nueva` en `src/routes.tsx`, agregar el enlace "Nueva notificación" en `src/components/Layout.tsx` y el botón correspondiente en la cabecera de `src/pages/Listado.tsx`
+- [x] T020 [US1] Confirmar con el resumen `role="alert"` y el foco en el primer campo inválido que el formulario es utilizable solo con teclado (FR-015)
+- [x] T021 [US1] Correr `npm run build`, `npm run lint` y `npm run test` — deben pasar para esta historia
 
 **Checkpoint**: User Story 1 funciona y se puede probar de forma independiente (MVP).
 
@@ -81,14 +81,14 @@ description: 'Task list for feature implementation'
 
 ### Tests for User Story 2 ⚠️
 
-- [X] T022 [P] [US2] `src/lib/submissionId.test.ts`: el `id` no cambia si la huella es igual; cambia si cambia cualquier campo del contenido; siempre cambia tras pedir uno nuevo explícitamente
-- [X] T023 [P] [US2] `src/pages/NuevaNotificacion.test.tsx` (extender T013): un segundo clic en "Enviar" mientras la mutación está en curso no dispara una segunda solicitud; reenviar el mismo formulario sin cambios muestra "ya existía" con el mismo `externalId`
+- [x] T022 [P] [US2] `src/lib/submissionId.test.ts`: el `id` no cambia si la huella es igual; cambia si cambia cualquier campo del contenido; siempre cambia tras pedir uno nuevo explícitamente
+- [x] T023 [P] [US2] `src/pages/NuevaNotificacion.test.tsx` (extender T013): un segundo clic en "Enviar" mientras la mutación está en curso no dispara una segunda solicitud; reenviar el mismo formulario sin cambios muestra "ya existía" con el mismo `externalId`
 
 ### Implementation for User Story 2
 
-- [X] T024 [US2] En `src/pages/NuevaNotificacion.tsx`, conectar `submissionId.ts` (T008) al `SendDraft`: recalcular la huella en cada cambio de campo y usar `useSendNotification` con `mutation.isPending` para deshabilitar el botón de envío mientras hay uno en curso (depende de T017, T018)
-- [X] T025 [US2] Confirmar en `SendResultPanel` (T016) que "Enviar otra" genera un `submissionId` nuevo explícitamente, incluso si el contenido queda igual
-- [X] T026 [US2] Correr `npm run build`, `npm run lint` y `npm run test` — deben pasar para esta historia
+- [x] T024 [US2] En `src/pages/NuevaNotificacion.tsx`, conectar `submissionId.ts` (T008) al `SendDraft`: recalcular la huella en cada cambio de campo y usar `useSendNotification` con `mutation.isPending` para deshabilitar el botón de envío mientras hay uno en curso (depende de T017, T018)
+- [x] T025 [US2] Confirmar en `SendResultPanel` (T016) que "Enviar otra" genera un `submissionId` nuevo explícitamente, incluso si el contenido queda igual
+- [x] T026 [US2] Correr `npm run build`, `npm run lint` y `npm run test` — deben pasar para esta historia
 
 **Checkpoint**: User Story 1 y 2 funcionan juntas de forma independiente.
 
@@ -102,17 +102,17 @@ description: 'Task list for feature implementation'
 
 ### Tests for User Story 3 ⚠️
 
-- [X] T027 [P] [US3] `src/lib/recipients.test.ts`: separa por salto de línea/coma/punto y coma, normaliza por canal, marca duplicados, y bloquea con conteo y máximo al superar 1000
-- [X] T028 [P] [US3] `src/components/send/ConfirmSendDialog.test.tsx`: foco inicial en cancelar, cierre con Escape, devuelve el foco al botón que lo abrió (research.md D9)
-- [X] T029 [P] [US3] `src/pages/NuevaNotificacion.test.tsx` (modo varios): flujo con MSW — confirmación muestra canal, mensaje y cantidad; al confirmar, un lote de más de 200 se envía en varias solicitudes y el resumen agrega los totales; un destinatario rechazado se puede reenviar sin repetir los aceptados; una solicitud que falla por red marca sus elementos como "sin confirmar" y permite reenviarlos
+- [x] T027 [P] [US3] `src/lib/recipients.test.ts`: separa por salto de línea/coma/punto y coma, normaliza por canal, marca duplicados, y bloquea con conteo y máximo al superar 1000
+- [x] T028 [P] [US3] `src/components/send/ConfirmSendDialog.test.tsx`: foco inicial en cancelar, cierre con Escape, devuelve el foco al botón que lo abrió (research.md D9)
+- [x] T029 [P] [US3] `src/pages/NuevaNotificacion.test.tsx` (modo varios): flujo con MSW — confirmación muestra canal, mensaje y cantidad; al confirmar, un lote de más de 200 se envía en varias solicitudes y el resumen agrega los totales; un destinatario rechazado se puede reenviar sin repetir los aceptados; una solicitud que falla por red marca sus elementos como "sin confirmar" y permite reenviarlos
 
 ### Implementation for User Story 3
 
-- [X] T030 [P] [US3] Crear `src/components/send/ConfirmSendDialog.tsx` según research.md D9 (`role="dialog"`, `aria-modal`, foco en cancelar, Escape, devuelve el foco)
-- [X] T031 [P] [US3] Crear `src/components/send/BatchResultTable.tsx`: tabla de `SendOutcome` con filtro por estado (aceptado/duplicado/rechazado/sin confirmar), resumen de totales (`BatchSummary`) y botón "Reenviar rechazados"
-- [X] T032 [US3] Crear `src/hooks/useSendBatch.ts`: trocea la lista de `RecipientEntry` en solicitudes de 200 vía `sendNotificationBatch`, las envía en secuencia con progreso, asocia cada resultado a su fila por `externalId`, y marca como `SIN_CONFIRMAR` los elementos de una solicitud fallida (research.md D6)
-- [X] T033 [US3] Agregar el modo "varios destinatarios" a `src/pages/NuevaNotificacion.tsx`: área de texto de destinatarios (`recipients.ts`), `ConfirmSendDialog` antes de enviar, `useSendBatch`, y `BatchResultTable` con reenvío solo de los rechazados reutilizando el mismo `submissionId` por fila (depende de T006, T008, T030-T032)
-- [X] T034 [US3] Correr `npm run build`, `npm run lint` y `npm run test` — deben pasar para esta historia
+- [x] T030 [P] [US3] Crear `src/components/send/ConfirmSendDialog.tsx` según research.md D9 (`role="dialog"`, `aria-modal`, foco en cancelar, Escape, devuelve el foco)
+- [x] T031 [P] [US3] Crear `src/components/send/BatchResultTable.tsx`: tabla de `SendOutcome` con filtro por estado (aceptado/duplicado/rechazado/sin confirmar), resumen de totales (`BatchSummary`) y botón "Reenviar rechazados"
+- [x] T032 [US3] Crear `src/hooks/useSendBatch.ts`: trocea la lista de `RecipientEntry` en solicitudes de 200 vía `sendNotificationBatch`, las envía en secuencia con progreso, asocia cada resultado a su fila por `externalId`, y marca como `SIN_CONFIRMAR` los elementos de una solicitud fallida (research.md D6)
+- [x] T033 [US3] Agregar el modo "varios destinatarios" a `src/pages/NuevaNotificacion.tsx`: área de texto de destinatarios (`recipients.ts`), `ConfirmSendDialog` antes de enviar, `useSendBatch`, y `BatchResultTable` con reenvío solo de los rechazados reutilizando el mismo `submissionId` por fila (depende de T006, T008, T030-T032)
+- [x] T034 [US3] Correr `npm run build`, `npm run lint` y `npm run test` — deben pasar para esta historia
 
 **Checkpoint**: las tres historias (US1, US2, US3) funcionan de forma independiente y en conjunto.
 
@@ -126,13 +126,13 @@ description: 'Task list for feature implementation'
 
 ### Tests for User Story 4 ⚠️
 
-- [X] T035 [P] [US4] `src/pages/Detalle.test.tsx` (extender el existente): el botón Reintentar aparece solo en `FAILED`/`RECOVERABLE`; al pulsarlo con MSW respondiendo 202, el estado se actualiza sin recargar; con 400/404 se muestra el mensaje del servidor
+- [x] T035 [P] [US4] `src/pages/Detalle.test.tsx` (extender el existente): el botón Reintentar aparece solo en `FAILED`/`RECOVERABLE`; al pulsarlo con MSW respondiendo 202, el estado se actualiza sin recargar; con 400/404 se muestra el mensaje del servidor
 
 ### Implementation for User Story 4
 
-- [X] T036 [US4] Crear `src/hooks/useRetryNotification.ts`: `useMutation` sobre `retryNotification(id)` que en 202 hace `queryClient.setQueryData(['notification', id], response)` y traduce 400/404 a un mensaje para el operador (research.md D11)
-- [X] T037 [US4] Agregar el botón "Reintentar" en `src/pages/Detalle.tsx`, visible solo cuando `status` es `FAILED` o `RECOVERABLE`, inactivo mientras la mutación está en curso
-- [X] T038 [US4] Correr `npm run build`, `npm run lint` y `npm run test` — deben pasar para esta historia
+- [x] T036 [US4] Crear `src/hooks/useRetryNotification.ts`: `useMutation` sobre `retryNotification(id)` que en 202 hace `queryClient.setQueryData(['notification', id], response)` y traduce 400/404 a un mensaje para el operador (research.md D11)
+- [x] T037 [US4] Agregar el botón "Reintentar" en `src/pages/Detalle.tsx`, visible solo cuando `status` es `FAILED` o `RECOVERABLE`, inactivo mientras la mutación está en curso
+- [x] T038 [US4] Correr `npm run build`, `npm run lint` y `npm run test` — deben pasar para esta historia
 
 **Checkpoint**: las cuatro historias funcionan de forma independiente y en conjunto.
 
@@ -140,10 +140,10 @@ description: 'Task list for feature implementation'
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [X] T039 [P] Revisar que ningún borrador de `NuevaNotificacion` ni resultado de envío sobreviva a un cambio de `X-Tenant-Id` (Principio II, FR-014): el estado vive solo en el componente, sin `localStorage`/`sessionStorage`
-- [X] T040 [P] Actualizar `quickstart.md` si algún paso cambió durante la implementación
-- [X] T041 Confirmar con el equipo backend el máximo real por lote (research.md D6) y, si el contrato lo declara, ajustar el tamaño de tanda en `useSendBatch.ts`; si no hay respuesta, documentar la fecha límite acordada
-- [X] T042 [P] Correr `npm run lint`, `npm run typecheck`, `npm run test` y `npm run build` completos antes de abrir el PR
+- [x] T039 [P] Revisar que ningún borrador de `NuevaNotificacion` ni resultado de envío sobreviva a un cambio de `X-Tenant-Id` (Principio II, FR-014): el estado vive solo en el componente, sin `localStorage`/`sessionStorage`
+- [x] T040 [P] Actualizar `quickstart.md` si algún paso cambió durante la implementación
+- [x] T041 Confirmar con el equipo backend el máximo real por lote (research.md D6) y, si el contrato lo declara, ajustar el tamaño de tanda en `useSendBatch.ts`; si no hay respuesta, documentar la fecha límite acordada
+- [x] T042 [P] Correr `npm run lint`, `npm run typecheck`, `npm run test` y `npm run build` completos antes de abrir el PR
 - [~] T043 Validar manualmente los 9 pasos de `quickstart.md` contra el backend real — parcial: paso 2 (individual EMAIL) y el reintento desde `Detalle` se probaron contra un backend real y funcionan (id devuelto, aparece en el listado por SSE sin recargar, botón Reintentar visible solo en FAILED). Pasos 5-6 (varios destinatarios) no se pudieron validar: el backend usado devolvió 404 en `POST /notifications:sendBatch` y 405 en `POST /notifications/{id}:retry` al probarlo con `curl` directo (sin pasar por el frontend), lo que indica un problema de ruteo del lado del backend para rutas con `:` — no un defecto del panel. Los mismos flujos ya están cubiertos por los tests de flujo con MSW (T029). Pendiente: repetir estos dos pasos cuando el backend tenga ese ruteo corregido.
 
 ---
