@@ -116,6 +116,17 @@ describe('requestBrowserPushToken', () => {
         expect(error).toMatchObject({ code: 'failed' });
     });
 
+    it('incluye el código de error de Firebase en el mensaje', async () => {
+        stubBrowser('granted');
+        getToken.mockRejectedValue(
+            Object.assign(new Error('boom'), { code: 'messaging/token-subscribe-failed' }),
+        );
+
+        await expect(requestBrowserPushToken(config)).rejects.toMatchObject({
+            message: expect.stringContaining('messaging/token-subscribe-failed') as string,
+        });
+    });
+
     it('falla con "failed" si Firebase no devuelve token', async () => {
         stubBrowser('granted');
         getToken.mockResolvedValue('');
