@@ -1,4 +1,12 @@
 const TENANT_ID = import.meta.env.VITE_TENANT_ID;
+const AUTH_TOKEN = import.meta.env.VITE_AUTH_TOKEN;
+
+export function authHeaders(): Record<string, string> {
+    return {
+        'X-Tenant-Id': TENANT_ID,
+        ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}),
+    };
+}
 
 export class ApiError extends Error {
     status: number;
@@ -28,7 +36,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     const res = await fetch(`/api${path}`, {
         ...options,
         headers: {
-            'X-Tenant-Id': TENANT_ID,
+            ...authHeaders(),
             'Content-Type': 'application/json',
             ...options.headers,
         },
