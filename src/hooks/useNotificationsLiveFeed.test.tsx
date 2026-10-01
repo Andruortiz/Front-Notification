@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { useNotificationsLiveFeed } from './useNotificationsLiveFeed';
+import { applyLiveUpdate, useNotificationsLiveFeed } from './useNotificationsLiveFeed';
 import {
     closeLiveConnection,
     emitLiveUpdate,
@@ -133,6 +133,12 @@ describe('useNotificationsLiveFeed', () => {
 
     it('discards stale rows not present in the snapshot replayed after a reconnect', async () => {
         const client = new QueryClient();
+        client.setQueryData(['notifications'], {
+            items: [],
+            limit: 50,
+            offset: 0,
+            hasNext: false,
+        } satisfies NotificationSearchResponse);
         const { result } = renderWithClient(client);
         await waitFor(() => expect(result.current).toBe('open'));
 
@@ -160,5 +166,102 @@ describe('useNotificationsLiveFeed', () => {
             expect(ids).toContain('notif-fresh');
             expect(ids).not.toContain('notif-stale');
         });
+    });
+});
+
+function page(
+    items: NotificationSearchResponse['items'],
+    overrides: Partial<NotificationSearchResponse> = {},
+): NotificationSearchResponse {
+    return { items, limit: 3, offset: 0, hasNext: false, ...overrides };
+}
+
+const at = (hour: number) => `2026-09-25T${String(hour).padStart(2, '0')}:00:00Z`;
+
+describe('applyLiveUpdate', () => {
+    it('inserts a new notification in acceptedAt order on the first page', () => {
+        const previous = page([
+            notificationHistoryItem({ notificationId: 'a', acceptedAt: at(12) }),
+            notificationHistoryItem({ notificationId: 'c', acceptedAt: at(10) }),
+        ]);
+
+        const next = applyLiveUpdate(previous, {
+            action: 'UPSERT',
+            notification: notificationHistoryItem({ notificationId: 'b', acceptedAt: at(11) }),
+        });
+
+        expect(next?.items.map((item) => item.notificationId)).toEqual(['a', 'b', 'c']);
+        expect(next?.hasNext).toBe(false);
+    });
+
+    it('keeps the page within its limit and reports there is a next page', () => {
+        const previous = page([
+            notificationHistoryItem({ notificationId: 'a', acceptedAt: at(12) }),
+            notificationHistoryItem({ notificationId: 'b', acceptedAt: at(11) }),
+            notificationHistoryItem({ notificationId: 'c', acceptedAt: at(10) }),
+        ]);
+
+        const next = applyLiveUpdate(previous, {
+            action: 'UPSERT',
+            notification: notificationHistoryItem({ notificationId: 'new', acceptedAt: at(13) }),
+        });
+
+        expect(next?.items.map((item) => item.notificationId)).toEqual(['new', 'a', 'b']);
+        expect(next?.hasNext).toBe(true);
+    });
+
+    it('does not let an older notification from the replayed snapshot displace the page', () => {
+        const previous = page(
+            [
+                notificationHistoryItem({ notificationId: 'a', acceptedAt: at(12) }),
+                notificationHistoryItem({ notificationId: 'b', acceptedAt: at(11) }),
+                notificationHistoryItem({ notificationId: 'c', acceptedAt: at(10) }),
+            ],
+            { hasNext: true },
+        );
+
+        const next = applyLiveUpdate(previous, {
+            action: 'UPSERT',
+            notification: notificationHistoryItem({ notificationId: 'old', acceptedAt: at(1) }),
+        });
+
+        expect(next?.items.map((item) => item.notificationId)).toEqual(['a', 'b', 'c']);
+    });
+
+    it('does not insert unknown notifications into pages after the first', () => {
+        const previous = page(
+            [notificationHistoryItem({ notificationId: 'x', acceptedAt: at(5) })],
+            { offset: 3, hasNext: true },
+        );
+
+        const next = applyLiveUpdate(previous, {
+            action: 'UPSERT',
+            notification: notificationHistoryItem({ notificationId: 'new', acceptedAt: at(13) }),
+        });
+
+        expect(next).toBe(previous);
+    });
+
+    it('still updates in place a notification that belongs to a later page', () => {
+        const previous = page(
+            [notificationHistoryItem({ notificationId: 'x', status: 'PENDING' })],
+            { offset: 3 },
+        );
+
+        const next = applyLiveUpdate(previous, {
+            action: 'UPSERT',
+            notification: notificationHistoryItem({ notificationId: 'x', status: 'DELIVERED' }),
+        });
+
+        expect(next?.items[0]?.status).toBe('DELIVERED');
+    });
+
+    it('ignores updates when the page has not been loaded yet', () => {
+        expect(
+            applyLiveUpdate(undefined, {
+                action: 'UPSERT',
+                notification: notificationHistoryItem(),
+            }),
+        ).toBeUndefined();
     });
 });

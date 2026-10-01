@@ -9,12 +9,60 @@ import type { components } from '../api/schema';
 
 type NotificationSearchResponse = components['schemas']['NotificationSearchResponse'];
 
-const emptyResponse = (previous?: NotificationSearchResponse): NotificationSearchResponse => ({
-    items: [],
-    limit: previous?.limit ?? 50,
-    offset: previous?.offset ?? 0,
-    hasNext: previous?.hasNext ?? false,
-});
+export const NOTIFICATIONS_KEY = ['notifications'] as const;
+
+type NotificationLiveUpdate = components['schemas']['NotificationLiveUpdate'];
+
+function offsetOf(queryKey: readonly unknown[]): number {
+    const params = queryKey[1] as { offset?: number } | undefined;
+    return params?.offset ?? 0;
+}
+
+function emptyResponse(
+    previous: NotificationSearchResponse | undefined,
+): NotificationSearchResponse | undefined {
+    return previous && { ...previous, items: [] };
+}
+
+function acceptedTime(item: NotificationSearchResponse['items'][number]): number {
+    return item.acceptedAt ? Date.parse(item.acceptedAt) : 0;
+}
+
+export function applyLiveUpdate(
+    previous: NotificationSearchResponse | undefined,
+    update: NotificationLiveUpdate,
+): NotificationSearchResponse | undefined {
+    if (!previous) {
+        return previous;
+    }
+    const incoming = update.notification;
+    const index = previous.items.findIndex(
+        (item) => item.notificationId === incoming.notificationId,
+    );
+    if (update.action === 'REMOVE') {
+        return index === -1 ? previous : { ...previous, items: previous.items.toSpliced(index, 1) };
+    }
+    if (index !== -1) {
+        return { ...previous, items: previous.items.toSpliced(index, 1, incoming) };
+    }
+    if (previous.offset > 0) {
+        return previous;
+    }
+    const position = previous.items.findIndex(
+        (item) => acceptedTime(item) < acceptedTime(incoming),
+    );
+    const merged = previous.items.toSpliced(
+        position === -1 ? previous.items.length : position,
+        0,
+        incoming,
+    );
+    const overflow = merged.length > previous.limit;
+    return {
+        ...previous,
+        items: overflow ? merged.slice(0, previous.limit) : merged,
+        hasNext: previous.hasNext || overflow,
+    };
+}
 
 export function useNotificationsLiveFeed(
     filters: NotificationUpdatesFilters = {},
@@ -34,40 +82,25 @@ export function useNotificationsLiveFeed(
                         hasReconnected = true;
                     }
                     if (state === 'open' && hasReconnected) {
-                        queryClient.setQueryData<NotificationSearchResponse>(
-                            ['notifications'],
+                        queryClient.setQueriesData<NotificationSearchResponse>(
+                            {
+                                queryKey: NOTIFICATIONS_KEY,
+                                predicate: (query) => offsetOf(query.queryKey) === 0,
+                            },
                             emptyResponse,
                         );
+                        void queryClient.invalidateQueries({
+                            queryKey: NOTIFICATIONS_KEY,
+                            predicate: (query) => offsetOf(query.queryKey) > 0,
+                        });
                         hasReconnected = false;
                     }
                     setConnectionState(state);
                 },
                 onUpdate: (update) => {
-                    queryClient.setQueryData<NotificationSearchResponse>(
-                        ['notifications'],
-                        (previous) => {
-                            const base = previous ?? emptyResponse();
-                            const existingIndex = base.items.findIndex(
-                                (item) =>
-                                    item.notificationId === update.notification.notificationId,
-                            );
-                            if (update.action === 'REMOVE') {
-                                if (existingIndex === -1) {
-                                    return base;
-                                }
-                                const items = base.items.toSpliced(existingIndex, 1);
-                                return { ...base, items };
-                            }
-                            if (existingIndex === -1) {
-                                return { ...base, items: [update.notification, ...base.items] };
-                            }
-                            const items = base.items.toSpliced(
-                                existingIndex,
-                                1,
-                                update.notification,
-                            );
-                            return { ...base, items };
-                        },
+                    queryClient.setQueriesData<NotificationSearchResponse>(
+                        { queryKey: NOTIFICATIONS_KEY },
+                        (previous) => applyLiveUpdate(previous, update),
                     );
                 },
             },
