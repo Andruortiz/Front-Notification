@@ -72,7 +72,7 @@ export default function ConfirmSendDialog({
                     >
                         Cancelar
                     </button>
-                    <button type="button" className="catalog-action-button" onClick={onConfirm}>
+                    <button type="button" className="button" onClick={onConfirm}>
                         Confirmar envío
                     </button>
                 </div>

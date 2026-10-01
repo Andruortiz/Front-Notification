@@ -411,7 +411,17 @@ export default function NuevaNotificacion() {
                     value={channelType}
                     onChange={(value) => {
                         setChannelType(value);
-                        setErrors((prev) => ({ ...prev, channelType: undefined }));
+                        setErrors((prev) => ({
+                            ...prev,
+                            channelType: undefined,
+                            attachment: undefined,
+                        }));
+                        const nextChannel = channelsData?.items.find(
+                            (item) => item.channelType === value,
+                        );
+                        if (!nextChannel || !deriveChannelRules(nextChannel).attachments) {
+                            setAttachments([]);
+                        }
                     }}
                     error={errors.channelType}
                     selectRef={(el) => {
@@ -467,13 +477,15 @@ export default function NuevaNotificacion() {
                     </>
                 )}
 
-                <button
-                    type="submit"
-                    className="catalog-action-button"
-                    disabled={mutation.isPending || !rules}
-                >
-                    {mutation.isPending ? 'Enviando...' : 'Enviar'}
-                </button>
+                <div className="form-actions">
+                    <button
+                        type="submit"
+                        className="button"
+                        disabled={mutation.isPending || !rules}
+                    >
+                        {mutation.isPending ? 'Enviando...' : 'Enviar'}
+                    </button>
+                </div>
             </form>
 
             <ConfirmSendDialog

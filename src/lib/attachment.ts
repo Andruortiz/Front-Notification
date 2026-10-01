@@ -8,6 +8,7 @@ export interface ChannelAttachmentRules {
     maxItems: number;
     contentTypes: string[] | null;
     maxSizeBytes: number | null;
+    maxTotalBytes?: number | null;
 }
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -93,6 +94,10 @@ export function maxFileBytes(rules: ChannelAttachmentRules | null): number {
     return rules?.maxSizeBytes ? Math.min(MAX_FILE_BYTES, rules.maxSizeBytes) : MAX_FILE_BYTES;
 }
 
+export function maxTotalBytes(rules: ChannelAttachmentRules | null): number {
+    return rules?.maxTotalBytes ? Math.min(MAX_TOTAL_BYTES, rules.maxTotalBytes) : MAX_TOTAL_BYTES;
+}
+
 export function maxFileCount(rules: ChannelAttachmentRules | null): number {
     return rules ? Math.min(MAX_FILES, rules.maxItems) : MAX_FILES;
 }
@@ -137,8 +142,9 @@ export function validateAttachmentSet(
         return `Se admiten como máximo ${maxCount} archivos.`;
     }
     const total = files.reduce((sum, file) => sum + file.size, 0);
-    if (total > MAX_TOTAL_BYTES) {
-        return `El total de adjuntos supera ${formatFileSize(MAX_TOTAL_BYTES)}.`;
+    const totalLimit = maxTotalBytes(rules);
+    if (total > totalLimit) {
+        return `El total de adjuntos supera ${formatFileSize(totalLimit)}.`;
     }
     return null;
 }
@@ -162,6 +168,7 @@ export function addAttachmentFiles(
     const rejected: RejectedFile[] = [];
     const seen = new Set(current.map(attachmentFingerprint));
     const maxCount = maxFileCount(rules);
+    const totalLimit = maxTotalBytes(rules);
     let total = current.reduce((sum, file) => sum + file.size, 0);
 
     for (const file of incoming) {
@@ -175,10 +182,10 @@ export function addAttachmentFiles(
                 name: file.name,
                 reason: `Se admiten como máximo ${maxCount} archivos.`,
             });
-        } else if (total + file.size > MAX_TOTAL_BYTES) {
+        } else if (total + file.size > totalLimit) {
             rejected.push({
                 name: file.name,
-                reason: `Superaría el total de ${formatFileSize(MAX_TOTAL_BYTES)}.`,
+                reason: `Superaría el total de ${formatFileSize(totalLimit)}.`,
             });
         } else {
             files.push(file);

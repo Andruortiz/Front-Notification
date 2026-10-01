@@ -3,11 +3,11 @@ import { createPortal } from 'react-dom';
 import {
     ATTACHMENT_ACCEPT,
     ATTACHMENT_TYPES_LABEL,
-    MAX_TOTAL_BYTES,
     addAttachmentFiles,
     formatFileSize,
     maxFileBytes,
     maxFileCount,
+    maxTotalBytes,
     type ChannelAttachmentRules,
     type RejectedFile,
 } from '../../lib/attachment';
@@ -120,8 +120,8 @@ export default function AttachmentDialog({
                     {ATTACHMENT_TYPES_LABEL}. Hasta {maxCount}{' '}
                     {maxCount === 1 ? 'archivo' : 'archivos'} de{' '}
                     {formatFileSize(maxFileBytes(rules))} cada uno y{' '}
-                    {formatFileSize(MAX_TOTAL_BYTES)} en total. Los archivos de más de 1 MB se suben
-                    y se verifican antes de enviar.
+                    {formatFileSize(maxTotalBytes(rules))} en total. Los archivos de más de 1 MB se
+                    suben y se verifican antes de enviar.
                 </p>
 
                 <div
@@ -180,7 +180,7 @@ export default function AttachmentDialog({
                 )}
                 <p className="field-hint" aria-live="polite">
                     {draft.length} de {maxCount} archivos · {formatFileSize(total)} de{' '}
-                    {formatFileSize(MAX_TOTAL_BYTES)}
+                    {formatFileSize(maxTotalBytes(rules))}
                 </p>
 
                 <div className="dialog-actions">

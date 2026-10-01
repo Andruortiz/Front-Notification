@@ -1,3 +1,10 @@
+## Variables de entorno y adjuntos
+
+- `VITE_API_BASE_URL`: URL del backend.
+- `VITE_AUTH_TOKEN`: JWT del backend (se envia como `Authorization: Bearer`). Para pruebas, generarlo con el emisor local del backend.
+- Adjuntos por correo: hasta 5 archivos; los de mas de 1 MB se suben a MinIO con una URL prefirmada y se envian por referencia tras el escaneo antivirus. Los limites por archivo y en total salen del `contentSchema` del canal (`sizeBytes` y `attachmentsTotalBytes`); con Brevo el total es de 4 MB.
+- El navegador sube directo a MinIO, asi que el backend debe tener `MINIO_CORS_ALLOW_ORIGIN` con el origen del frontend.
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

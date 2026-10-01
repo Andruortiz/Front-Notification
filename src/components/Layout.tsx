@@ -17,6 +17,7 @@ export default function Layout() {
                     <Link
                         key={link.to}
                         to={link.to}
+                        aria-current={location.pathname === link.to ? 'page' : undefined}
                         className={
                             location.pathname === link.to
                                 ? 'app-nav__link app-nav__link--active'
@@ -28,7 +29,9 @@ export default function Layout() {
                 ))}
             </nav>
             <main className="app-main">
-                <Outlet />
+                <div className="content">
+                    <Outlet />
+                </div>
             </main>
         </div>
     );

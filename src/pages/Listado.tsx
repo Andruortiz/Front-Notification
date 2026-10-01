@@ -35,15 +35,15 @@ export default function Listado() {
         <div>
             <div className="page-header page-header--with-action">
                 <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <h1 style={{ marginBottom: 0 }}>Notificaciones</h1>
+                    <div className="page-title-line">
+                        <h1>Notificaciones</h1>
                         <LiveConnectionBadge state={connectionState} />
                     </div>
                     <p className="page-subtitle">
                         Historial de notificaciones aceptadas por el sistema.
                     </p>
                 </div>
-                <Link className="catalog-action-button" to="/notificaciones/nueva">
+                <Link className="button" to="/notificaciones/nueva">
                     Nueva notificación
                 </Link>
             </div>
@@ -74,44 +74,48 @@ export default function Listado() {
                 )}
 
             {!isLoading && !isError && data && data.items.length > 0 && (
-                <table className="data-table">
-                    <thead>
-                        <tr>
-                            <th>Destinatario</th>
-                            <th>Canal</th>
-                            <th>Estado</th>
-                            <th>Proveedor</th>
-                            <th>Aceptada</th>
-                            <th>Intentos</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {data.items.map((n) => (
-                            <tr key={n.notificationId}>
-                                <td>{n.recipientId}</td>
-                                <td>{n.channelType}</td>
-                                <td>
-                                    <StatusBadge status={n.status} />
-                                </td>
-                                <td className="cell-muted">
-                                    {n.deliveryAttempts?.at(-1)?.providerId ??
-                                        'sin intento todavía'}
-                                </td>
-                                <td className="cell-muted">{formatDate(n.acceptedAt)}</td>
-                                <td className="cell-muted">{n.deliveryAttempts?.length ?? 0}</td>
-                                <td>
-                                    <Link
-                                        className="link-button"
-                                        to={`/notificaciones/${n.notificationId}`}
-                                    >
-                                        Ver detalle
-                                    </Link>
-                                </td>
+                <div className="table-frame table-scroll">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>Destinatario</th>
+                                <th>Canal</th>
+                                <th>Estado</th>
+                                <th>Proveedor</th>
+                                <th>Aceptada</th>
+                                <th>Intentos</th>
+                                <th></th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {data.items.map((n) => (
+                                <tr key={n.notificationId}>
+                                    <td className="cell-strong">{n.recipientId}</td>
+                                    <td className="cell-muted">{n.channelType}</td>
+                                    <td>
+                                        <StatusBadge status={n.status} />
+                                    </td>
+                                    <td className="cell-muted">
+                                        {n.deliveryAttempts?.at(-1)?.providerId ??
+                                            'sin intento todavía'}
+                                    </td>
+                                    <td className="cell-muted">{formatDate(n.acceptedAt)}</td>
+                                    <td className="cell-muted">
+                                        {n.deliveryAttempts?.length ?? 0}
+                                    </td>
+                                    <td>
+                                        <Link
+                                            className="link-button"
+                                            to={`/notificaciones/${n.notificationId}`}
+                                        >
+                                            Ver detalle
+                                        </Link>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
 
             {!isLoading && !isError && data && (page > 1 || data.items.length > 0) && (

@@ -9,6 +9,7 @@ import {
     formatFileSize,
     maxFileBytes,
     maxFileCount,
+    maxTotalBytes,
     validateAttachmentFile,
     validateAttachmentSet,
     type ChannelAttachmentRules,
@@ -110,6 +111,35 @@ describe('validateAttachmentSet', () => {
         expect(validateAttachmentSet(files, null)).toBeNull();
         files.push(file('c.pdf', MAX_FILE_BYTES));
         expect(validateAttachmentSet(files, null)).toMatch(/total/);
+    });
+});
+
+describe('límite total del canal', () => {
+    const emailRules: ChannelAttachmentRules = {
+        maxItems: 5,
+        contentTypes: null,
+        maxSizeBytes: 4_000_000,
+        maxTotalBytes: 4_000_000,
+    };
+
+    it('usa el total del canal cuando es menor que el global', () => {
+        expect(maxTotalBytes(emailRules)).toBe(4_000_000);
+        expect(maxTotalBytes(null)).toBe(MAX_TOTAL_BYTES);
+    });
+
+    it('rechaza un conjunto que supera el total del canal', () => {
+        const files = [file('a.pdf', 2_500_000), file('b.pdf', 2_500_000)];
+        expect(validateAttachmentSet(files, emailRules)).toMatch(/total/);
+    });
+
+    it('al agregar rechaza el archivo que superaría el total del canal', () => {
+        const result = addAttachmentFiles(
+            [file('a.pdf', 2_500_000)],
+            [file('b.pdf', 2_500_000)],
+            emailRules,
+        );
+        expect(result.files).toHaveLength(1);
+        expect(result.rejected[0].reason).toMatch(/total/);
     });
 });
 

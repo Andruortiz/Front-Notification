@@ -68,6 +68,16 @@ describe('deriveChannelRules', () => {
 });
 
 describe('readAttachmentRules', () => {
+    it('lee el total máximo declarado en attachmentsTotalBytes', () => {
+        const schema = JSON.stringify({
+            properties: {
+                attachments: { type: 'array', maxItems: 5 },
+                attachmentsTotalBytes: { type: 'integer', maximum: 4000000 },
+            },
+        });
+        expect(readAttachmentRules(schema)?.maxTotalBytes).toBe(4000000);
+    });
+
     it('devuelve nulo si el canal no declara adjuntos', () => {
         expect(readAttachmentRules(null)).toBeNull();
         expect(readAttachmentRules('{"properties":{"body":{"type":"string"}}}')).toBeNull();
@@ -94,6 +104,7 @@ describe('readAttachmentRules', () => {
             maxItems: 2,
             contentTypes: ['application/pdf', 'image/png'],
             maxSizeBytes: 2048,
+            maxTotalBytes: null,
         });
     });
 
@@ -102,6 +113,7 @@ describe('readAttachmentRules', () => {
             maxItems: Infinity,
             contentTypes: null,
             maxSizeBytes: null,
+            maxTotalBytes: null,
         });
     });
 });
