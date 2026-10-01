@@ -20,7 +20,7 @@ export function normalizeAddress(channelType: string, address: string): string {
         case 'EMAIL':
             return trimmed.toLowerCase();
         case 'SMS':
-            return trimmed.replace(/[\s()-]/g, '');
+            return trimmed.replace(/[\s().-]/g, '');
         default:
             return trimmed;
     }

@@ -1,4 +1,5 @@
 import { validateAttachmentFile, validateAttachmentSet } from './attachment';
+import { MAX_CONTENT_LENGTH, hasControlCharacters } from './validators';
 import type { ChannelRules } from './channelRules';
 import type { RecipientEntry } from './recipients';
 
@@ -14,42 +15,72 @@ export type SendDraftErrors = Partial<
     Record<'channelType' | 'address' | 'subject' | 'body', string>
 >;
 
+interface ContentErrors {
+    subject?: string;
+    body?: string;
+}
+
+function validateContent(subject: string, body: string, rules: ChannelRules): ContentErrors {
+    const errors: ContentErrors = {};
+    const subjectSent = rules.subject !== 'hidden';
+
+    if (subjectSent) {
+        if (rules.subject === 'required' && !subject.trim()) {
+            errors.subject = 'Escribí un asunto.';
+        } else if (hasControlCharacters(subject)) {
+            errors.subject = 'El asunto no puede tener saltos de línea ni caracteres de control.';
+        } else if (rules.subjectMax != null && subject.length > rules.subjectMax) {
+            errors.subject = `El asunto supera el máximo de ${rules.subjectMax} caracteres.`;
+        }
+    }
+
+    if (!body.trim()) {
+        errors.body = 'Escribí un mensaje.';
+    } else if (hasControlCharacters(body, true)) {
+        errors.body = 'El mensaje contiene caracteres de control no permitidos.';
+    } else if (rules.bodyMax != null && body.length > rules.bodyMax) {
+        errors.body = `El mensaje supera el máximo de ${rules.bodyMax} caracteres.`;
+    } else {
+        const sentLength = (subjectSent ? subject.trim().length : 0) + body.length;
+        if (sentLength > MAX_CONTENT_LENGTH) {
+            errors.body = `El asunto y el mensaje juntos superan los ${MAX_CONTENT_LENGTH.toLocaleString('es-CO')} caracteres.`;
+        }
+    }
+
+    return errors;
+}
+
+function validateChannel(
+    channelType: string,
+    rules: ChannelRules | undefined,
+): { rules: ChannelRules; error?: undefined } | { rules?: undefined; error: string } {
+    if (!channelType || !rules) {
+        return { error: 'Elegí un canal disponible.' };
+    }
+    return { rules };
+}
+
 export function validateSendDraft(
     draft: SendDraft,
     rules: ChannelRules | undefined,
 ): SendDraftErrors {
     const errors: SendDraftErrors = {};
-
-    if (!draft.channelType || !rules) {
-        errors.channelType = 'Elegí un canal disponible.';
+    const channel = validateChannel(draft.channelType, rules);
+    if (!channel.rules) {
+        errors.channelType = channel.error;
         return errors;
     }
 
-    if (!rules.available) {
-        errors.channelType = rules.unavailableReason ?? 'Este canal no está disponible.';
+    if (!channel.rules.available) {
+        errors.channelType = channel.rules.unavailableReason ?? 'Este canal no está disponible.';
     }
 
-    if (!draft.address.trim()) {
-        errors.address = 'Escribí una dirección.';
-    } else if (!rules.validateAddress(draft.address)) {
-        errors.address = `Formato inválido para ${rules.addressLabel.toLowerCase()}.`;
+    const addressError = channel.rules.addressError(draft.address);
+    if (addressError) {
+        errors.address = addressError;
     }
 
-    if (
-        rules.subject !== 'hidden' &&
-        rules.subjectMax != null &&
-        draft.subject.length > rules.subjectMax
-    ) {
-        errors.subject = `El asunto supera el máximo de ${rules.subjectMax} caracteres.`;
-    }
-
-    if (!draft.body.trim()) {
-        errors.body = 'Escribí un mensaje.';
-    } else if (rules.bodyMax != null && draft.body.length > rules.bodyMax) {
-        errors.body = `El mensaje supera el máximo de ${rules.bodyMax} caracteres.`;
-    }
-
-    return errors;
+    return { ...errors, ...validateContent(draft.subject, draft.body, channel.rules) };
 }
 
 export type BatchDraftErrors = Partial<Record<'channelType' | 'subject' | 'body', string>>;
@@ -59,31 +90,17 @@ export function validateBatchDraft(
     rules: ChannelRules | undefined,
 ): BatchDraftErrors {
     const errors: BatchDraftErrors = {};
-
-    if (!draft.channelType || !rules) {
-        errors.channelType = 'Elegí un canal disponible.';
+    const channel = validateChannel(draft.channelType, rules);
+    if (!channel.rules) {
+        errors.channelType = channel.error;
         return errors;
     }
 
-    if (!rules.available) {
-        errors.channelType = rules.unavailableReason ?? 'Este canal no está disponible.';
+    if (!channel.rules.available) {
+        errors.channelType = channel.rules.unavailableReason ?? 'Este canal no está disponible.';
     }
 
-    if (
-        rules.subject !== 'hidden' &&
-        rules.subjectMax != null &&
-        draft.subject.length > rules.subjectMax
-    ) {
-        errors.subject = `El asunto supera el máximo de ${rules.subjectMax} caracteres.`;
-    }
-
-    if (!draft.body.trim()) {
-        errors.body = 'Escribí un mensaje.';
-    } else if (rules.bodyMax != null && draft.body.length > rules.bodyMax) {
-        errors.body = `El mensaje supera el máximo de ${rules.bodyMax} caracteres.`;
-    }
-
-    return errors;
+    return { ...errors, ...validateContent(draft.subject, draft.body, channel.rules) };
 }
 
 export function validateRecipientEntries(
@@ -92,8 +109,9 @@ export function validateRecipientEntries(
 ): Record<number, string> {
     const errors: Record<number, string> = {};
     entries.forEach((entry, index) => {
-        if (!rules.validateAddress(entry.address)) {
-            errors[index] = `Formato inválido para ${rules.addressLabel.toLowerCase()}.`;
+        const addressError = rules.addressError(entry.address);
+        if (addressError) {
+            errors[index] = addressError;
         }
     });
     return errors;

@@ -18,7 +18,7 @@ function channelItem(overrides: Partial<ChannelItem> = {}): ChannelItem {
 describe('deriveChannelRules', () => {
     it('valida direcciones de correo y oculta límites para EMAIL', () => {
         const rules = deriveChannelRules(channelItem({ channelType: 'EMAIL' }));
-        expect(rules.subject).toBe('optional');
+        expect(rules.subject).toBe('required');
         expect(rules.validateAddress('alice@example.com')).toBe(true);
         expect(rules.validateAddress('no-es-correo')).toBe(false);
         expect(rules.available).toBe(true);
