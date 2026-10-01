@@ -183,6 +183,13 @@ code {
     margin-bottom: 24px;
 }
 
+.page-header--with-action {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
 .page-subtitle {
     color: var(--text);
     font-size: 14px;
@@ -302,6 +309,14 @@ code {
     text-decoration: underline;
 }
 
+button.link-button {
+    background: none;
+    border: 0;
+    padding: 0;
+    font-family: inherit;
+    cursor: pointer;
+}
+
 /* Cards */
 
 .card {
@@ -395,6 +410,150 @@ code {
     color: var(--status-failed-text);
     border-color: var(--status-failed-bg);
     background: var(--status-failed-bg);
+}
+
+/* Send forms */
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.form-field label,
+.form-field .form-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-h);
+}
+
+.form-field input,
+.form-field textarea,
+.form-field select {
+    font: inherit;
+    font-size: 14px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--text-h);
+}
+
+.form-field input[aria-invalid='true'],
+.form-field textarea[aria-invalid='true'],
+.form-field select[aria-invalid='true'] {
+    border-color: var(--status-failed-text);
+}
+
+.field-error {
+    margin: 0;
+    color: var(--status-failed-text);
+    font-size: 12px;
+}
+
+.field-hint {
+    margin: 0;
+    color: var(--text);
+    font-size: 12px;
+}
+
+.field-counter {
+    margin: 0;
+    color: var(--text);
+    font-size: 11px;
+    align-self: flex-end;
+}
+
+.form-alert {
+    margin-bottom: 16px;
+}
+
+/* Confirm dialog */
+
+.dialog-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 10;
+}
+
+.dialog-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: var(--shadow);
+}
+
+.dialog-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+/* Batch result */
+
+.batch-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: var(--text);
+}
+
+.batch-summary strong {
+    color: var(--text-h);
+}
+
+.batch-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.batch-filters button {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.batch-filters button.catalog-action-button--active {
+    border-color: var(--accent-border);
+    color: var(--accent);
+    background: var(--accent-bg);
+}
+
+.recipient-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    margin-top: 4px;
+    font-size: 12px;
+}
+
+.recipient-preview-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--text);
+}
+
+.recipient-preview-row--error {
+    color: var(--status-failed-text);
 }
 
 /* Catalog */
@@ -644,6 +803,8 @@ code {
 }
 
 .catalog-action-button {
+    display: inline-flex;
+    align-items: center;
     padding: 8px 14px;
     border: 1px solid var(--border);
     border-radius: 7px;
@@ -651,6 +812,7 @@ code {
     color: var(--text-h);
     font: inherit;
     font-size: 13px;
+    text-decoration: none;
     cursor: pointer;
 }
 
@@ -662,4 +824,93 @@ code {
 .catalog-action-button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.visually-hidden:focus-visible + label {
+    outline: 2px solid var(--accent, currentColor);
+    outline-offset: 2px;
+}
+
+.dialog-panel--wide {
+    max-width: 560px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+}
+
+.dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 0;
+    padding: 20px;
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    text-align: center;
+}
+
+.dropzone--active {
+    border-color: var(--accent, currentColor);
+}
+
+.dropzone p {
+    margin: 0;
+}
+
+.attachment-actions {
+    margin-bottom: 8px;
+}
+
+.attachment-list {
+    list-style: none;
+    margin: 8px 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.attachment-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.attachment-rejections {
+    margin: 0 0 12px;
+    padding-left: 20px;
+}
+
+.pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pagination-size {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }

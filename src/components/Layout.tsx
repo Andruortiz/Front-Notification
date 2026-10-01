@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 
 const NAV_LINKS = [
     { to: '/', label: 'Notificaciones' },
+    { to: '/notificaciones/nueva', label: 'Nueva notificación' },
     { to: '/catalogo', label: 'Catálogo' },
 ];
 

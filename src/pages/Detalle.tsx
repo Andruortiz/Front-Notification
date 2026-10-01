@@ -5,8 +5,11 @@ import type { components } from '../api/schema';
 import StatusBadge from '../components/StatusBadge';
 import LiveConnectionBadge from '../components/LiveConnectionBadge';
 import { useNotificationLiveStatus } from '../hooks/useNotificationLiveStatus';
+import { useRetryNotification, translateRetryError } from '../hooks/useRetryNotification';
 
 type NotificationStatusResponse = components['schemas']['NotificationStatusResponse'];
+
+const RETRYABLE_STATUSES = new Set(['FAILED', 'RECOVERABLE']);
 
 export default function Detalle() {
     const { id } = useParams();
@@ -17,6 +20,7 @@ export default function Detalle() {
         enabled: Boolean(id),
     });
     const connectionState = useNotificationLiveStatus(id);
+    const retryMutation = useRetryNotification(id);
 
     return (
         <div>
@@ -63,6 +67,28 @@ export default function Detalle() {
                                 : 'sin datos'}
                         </dd>
                     </dl>
+
+                    {retryMutation.isError && (
+                        <div
+                            role="alert"
+                            className="state-message state-message--error"
+                            style={{ marginTop: 16 }}
+                        >
+                            {translateRetryError(retryMutation.error)}
+                        </div>
+                    )}
+
+                    {data.status && RETRYABLE_STATUSES.has(data.status) && (
+                        <button
+                            type="button"
+                            className="catalog-action-button"
+                            style={{ marginTop: 16 }}
+                            disabled={retryMutation.isPending}
+                            onClick={() => retryMutation.mutate()}
+                        >
+                            {retryMutation.isPending ? 'Reintentando...' : 'Reintentar'}
+                        </button>
+                    )}
                 </div>
             )}
         </div>

@@ -1,7 +1,6 @@
 import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event-source';
+import { authHeaders } from './client';
 import type { components } from './schema';
-
-const TENANT_ID = import.meta.env.VITE_TENANT_ID;
 
 type NotificationLiveUpdate = components['schemas']['NotificationLiveUpdate'];
 type NotificationStatus = components['schemas']['NotificationStatus'];
@@ -39,7 +38,7 @@ export function subscribeToNotificationUpdates(
     handlers.onStateChange('connecting');
 
     void fetchEventSource(`/api/notifications:subscribe${query ? `?${query}` : ''}`, {
-        headers: { 'X-Tenant-Id': TENANT_ID },
+        headers: authHeaders(),
         signal,
         onopen(response) {
             const contentType = response.headers.get('content-type');

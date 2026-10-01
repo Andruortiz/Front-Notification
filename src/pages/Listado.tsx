@@ -1,10 +1,12 @@
-import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { Link, useSearchParams } from 'react-router-dom';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../api/client';
 import type { components } from '../api/schema';
 import StatusBadge from '../components/StatusBadge';
 import LiveConnectionBadge from '../components/LiveConnectionBadge';
-import { useNotificationsLiveFeed } from '../hooks/useNotificationsLiveFeed';
+import Pagination from '../components/Pagination';
+import { NOTIFICATIONS_KEY, useNotificationsLiveFeed } from '../hooks/useNotificationsLiveFeed';
+import { pageToOffset, parsePageParams } from '../lib/pagination';
 
 type NotificationSearchResponse = components['schemas']['NotificationSearchResponse'];
 
@@ -13,25 +15,37 @@ function formatDate(value?: string) {
 }
 
 export default function Listado() {
-    const { data, isLoading, isError, error } = useQuery({
-        queryKey: ['notifications'],
-        queryFn: () => apiFetch<NotificationSearchResponse>('/notifications'),
-        refetchOnMount: false,
+    const [searchParams, setSearchParams] = useSearchParams();
+    const { page, size } = parsePageParams(searchParams);
+    const offset = pageToOffset({ page, size });
+    const { data, isLoading, isError, error, isPlaceholderData } = useQuery({
+        queryKey: [...NOTIFICATIONS_KEY, { limit: size, offset }],
+        queryFn: () =>
+            apiFetch<NotificationSearchResponse>(`/notifications?limit=${size}&offset=${offset}`),
+        placeholderData: keepPreviousData,
+        refetchOnMount: offset > 0,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
     });
+    const goToPage = (nextPage: number, nextSize = size) =>
+        setSearchParams({ page: String(nextPage), size: String(nextSize) });
     const connectionState = useNotificationsLiveFeed();
 
     return (
         <div>
-            <div className="page-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <h1 style={{ marginBottom: 0 }}>Notificaciones</h1>
-                    <LiveConnectionBadge state={connectionState} />
+            <div className="page-header page-header--with-action">
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <h1 style={{ marginBottom: 0 }}>Notificaciones</h1>
+                        <LiveConnectionBadge state={connectionState} />
+                    </div>
+                    <p className="page-subtitle">
+                        Historial de notificaciones aceptadas por el sistema.
+                    </p>
                 </div>
-                <p className="page-subtitle">
-                    Historial de notificaciones aceptadas por el sistema.
-                </p>
+                <Link className="catalog-action-button" to="/notificaciones/nueva">
+                    Nueva notificación
+                </Link>
             </div>
 
             {isLoading && <div className="state-message">Cargando notificaciones...</div>}
@@ -42,9 +56,22 @@ export default function Listado() {
                 </div>
             )}
 
-            {!isLoading && !isError && (!data || data.items.length === 0) && (
+            {!isLoading && !isError && (!data || data.items.length === 0) && page === 1 && (
                 <div className="state-message">Todavía no hay notificaciones.</div>
             )}
+
+            {!isLoading &&
+                !isError &&
+                !isPlaceholderData &&
+                data?.items.length === 0 &&
+                page > 1 && (
+                    <div className="state-message">
+                        Esta página no tiene resultados.{' '}
+                        <button type="button" className="link-button" onClick={() => goToPage(1)}>
+                            Ir a la primera página
+                        </button>
+                    </div>
+                )}
 
             {!isLoading && !isError && data && data.items.length > 0 && (
                 <table className="data-table">
@@ -85,6 +112,19 @@ export default function Listado() {
                         ))}
                     </tbody>
                 </table>
+            )}
+
+            {!isLoading && !isError && data && (page > 1 || data.items.length > 0) && (
+                <Pagination
+                    page={page}
+                    size={size}
+                    offset={offset}
+                    count={data.items.length}
+                    hasNext={data.hasNext}
+                    busy={isPlaceholderData}
+                    onPageChange={(nextPage) => goToPage(nextPage)}
+                    onSizeChange={(nextSize) => goToPage(1, nextSize)}
+                />
             )}
         </div>
     );
