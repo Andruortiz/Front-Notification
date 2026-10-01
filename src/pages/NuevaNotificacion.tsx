@@ -16,6 +16,7 @@ import { useSendNotification, translateSendError } from '../hooks/useSendNotific
 import { useSendBatch, type BatchSendRow, type SendOutcome } from '../hooks/useSendBatch';
 import AttachmentField from '../components/send/AttachmentField';
 import ChannelSelect from '../components/send/ChannelSelect';
+import PushTokenButton from '../components/send/PushTokenButton';
 import NotificationFields from '../components/send/NotificationFields';
 import SendResultPanel from '../components/send/SendResultPanel';
 import ConfirmSendDialog from '../components/send/ConfirmSendDialog';
@@ -464,6 +465,15 @@ export default function NuevaNotificacion() {
                             }}
                             addressExtra={recipientsExtra}
                         />
+                        {channelType === 'PUSH' && (
+                            <PushTokenButton
+                                disabled={mutation.isPending || batchIsSending}
+                                onToken={(token) => {
+                                    setAddress(token);
+                                    revalidateField('address', { address: token });
+                                }}
+                            />
+                        )}
                         <AttachmentField
                             files={attachments}
                             rules={rules?.attachments ?? null}
