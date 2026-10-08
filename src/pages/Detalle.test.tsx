@@ -26,6 +26,39 @@ function renderDetalle(id: string) {
 }
 
 describe('Detalle', () => {
+    it('no muestra el ID y sí los tiempos de aceptación e intentos', async () => {
+        server.use(
+            http.get('*/notifications', () =>
+                HttpResponse.json({
+                    items: [
+                        notificationHistoryItem({
+                            notificationId: 'notif-1',
+                            deliveryAttempts: [
+                                {
+                                    occurredOn: '2026-09-25T10:01:00Z',
+                                    result: 'RECOVERABLE_FAILURE',
+                                    origin: 'AUTOMATIC',
+                                    providerId: 'brevo',
+                                },
+                            ],
+                        }),
+                    ],
+                    limit: 200,
+                    offset: 0,
+                    hasNext: false,
+                }),
+            ),
+        );
+
+        renderDetalle('notif-1');
+
+        expect(await screen.findByText('Aceptada')).toBeInTheDocument();
+        expect(screen.getByText(/Fallo recuperable/)).toBeInTheDocument();
+        expect(screen.getByText(/brevo/)).toBeInTheDocument();
+        expect(screen.queryByText('ID')).not.toBeInTheDocument();
+        expect(screen.queryByText('notif-1')).not.toBeInTheDocument();
+    });
+
     it('reflects a live status change without reloading the page', async () => {
         let requestCount = 0;
         server.use(

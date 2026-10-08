@@ -8,6 +8,19 @@ import { useNotificationLiveStatus } from '../hooks/useNotificationLiveStatus';
 import { useRetryNotification, translateRetryError } from '../hooks/useRetryNotification';
 
 type NotificationStatusResponse = components['schemas']['NotificationStatusResponse'];
+type NotificationSearchResponse = components['schemas']['NotificationSearchResponse'];
+
+const ATTEMPT_RESULT_LABELS = {
+    ACCEPTED: 'Aceptado por el proveedor',
+    RECOVERABLE_FAILURE: 'Fallo recuperable',
+    PERMANENT_FAILURE: 'Fallo permanente',
+} as const;
+
+const ATTEMPT_ORIGIN_LABELS = { MANUAL: 'manual', AUTOMATIC: 'automático' } as const;
+
+function formatDate(value?: string) {
+    return value ? new Date(value).toLocaleString() : 'sin datos';
+}
 
 const RETRYABLE_STATUSES = new Set(['FAILED', 'RECOVERABLE']);
 
@@ -19,6 +32,14 @@ export default function Detalle() {
         queryFn: () => apiFetch<NotificationStatusResponse>(`/notifications/${id}`),
         enabled: Boolean(id),
     });
+    // El detalle no trae los tiempos; se toman del historial (límite máximo de la API).
+    const { data: history } = useQuery({
+        queryKey: ['notification', id, 'history'],
+        queryFn: () => apiFetch<NotificationSearchResponse>('/notifications?limit=200'),
+        select: (res) => res.items.find((n) => n.notificationId === id),
+        enabled: Boolean(id),
+    });
+    const attempts = history?.deliveryAttempts ?? [];
     const connectionState = useNotificationLiveStatus(id);
     const retryMutation = useRetryNotification(id);
 
@@ -65,20 +86,42 @@ export default function Detalle() {
                             )}
                         </div>
                         <dl className="field-grid">
-                            <dt>ID</dt>
-                            <dd>
-                                <code>{data.notificationId}</code>
-                            </dd>
                             <dt>Canal</dt>
                             <dd>{data.channelType}</dd>
                             <dt>Proveedor</dt>
                             <dd>{data.providerId ?? 'sin intento todavía'}</dd>
+                            {history && (
+                                <>
+                                    <dt>Aceptada</dt>
+                                    <dd>{formatDate(history.acceptedAt)}</dd>
+                                </>
+                            )}
                             <dt>Última actualización</dt>
-                            <dd>
-                                {data.lastUpdatedAt
-                                    ? new Date(data.lastUpdatedAt).toLocaleString()
-                                    : 'sin datos'}
-                            </dd>
+                            <dd>{formatDate(data.lastUpdatedAt)}</dd>
+                            {history && (
+                                <>
+                                    <dt>Intentos de envío</dt>
+                                    <dd>
+                                        {attempts.length === 0 ? (
+                                            'ninguno todavía'
+                                        ) : (
+                                            <ol className="attempt-list">
+                                                {attempts.map((a, i) => (
+                                                    <li key={`${a.occurredOn}-${i}`}>
+                                                        {formatDate(a.occurredOn)} ·{' '}
+                                                        {a.result
+                                                            ? ATTEMPT_RESULT_LABELS[a.result]
+                                                            : 'sin resultado'}{' '}
+                                                        · {a.providerId ?? 'sin proveedor'}
+                                                        {a.origin &&
+                                                            ` (${ATTEMPT_ORIGIN_LABELS[a.origin]})`}
+                                                    </li>
+                                                ))}
+                                            </ol>
+                                        )}
+                                    </dd>
+                                </>
+                            )}
                         </dl>
 
                         {retryMutation.isError && (

@@ -1218,3 +1218,8 @@ button.link-button {
         align-items: flex-start;
     }
 }
+
+.attempt-list {
+    margin: 0;
+    padding-left: 18px;
+}
