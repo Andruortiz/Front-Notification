@@ -34,6 +34,20 @@ export function readFirebaseConfig(env: FirebaseEnv = import.meta.env): Firebase
         : null;
 }
 
+function describeFailure(error: unknown): string {
+    if (typeof error === 'object' && error !== null) {
+        const code = (error as { code?: unknown }).code;
+        if (typeof code === 'string' && code.length > 0) {
+            return ` Detalle: ${code}.`;
+        }
+        const name = (error as { name?: unknown }).name;
+        if (typeof name === 'string' && name.length > 0 && name !== 'Error') {
+            return ` Detalle: ${name}.`;
+        }
+    }
+    return '';
+}
+
 export function serviceWorkerUrl(config: FirebaseWebConfig): string {
     const params = new URLSearchParams({
         apiKey: config.apiKey,
@@ -92,7 +106,7 @@ export async function requestBrowserPushToken(config: FirebaseWebConfig): Promis
         }
         throw new PushTokenError(
             'failed',
-            'No se pudo obtener el token. Revisá la configuración de Firebase y la clave VAPID.',
+            `No se pudo obtener el token. Revisá la configuración de Firebase y la clave VAPID.${describeFailure(error)}`,
         );
     }
 }
