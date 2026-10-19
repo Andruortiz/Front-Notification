@@ -37,8 +37,9 @@ export function subscribeToNotificationUpdates(
 
     handlers.onStateChange('connecting');
 
-    void fetchEventSource(`/api/notifications:subscribe${query ? `?${query}` : ''}`, {
+    void fetchEventSource(`/api/notifications/stream${query ? `?${query}` : ''}`, {
         headers: authHeaders(),
+        credentials: 'include',
         signal,
         onopen(response) {
             const contentType = response.headers.get('content-type');

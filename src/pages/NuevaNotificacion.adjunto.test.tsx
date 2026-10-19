@@ -109,14 +109,14 @@ function uploadHandlers(id: string, steps: UploadStep[], calls: string[] = []) {
                 { status: 201 },
             );
         }),
-        http.post(new RegExp(`/attachment-uploads/${id}:complete$`), () => {
+        http.post('*/attachment-upload-completions', () => {
             calls.push('complete');
             return HttpResponse.json(
                 { uploadId: id, state: 'PENDING_SCAN', fileName: 'grande.pdf' },
                 { status: 202 },
             );
         }),
-        http.get(`*/attachment-uploads/${id}`, () => {
+        http.get('*/attachment-uploads/status', () => {
             calls.push('poll');
             const next = steps[Math.min(polls, steps.length - 1)];
             polls += 1;

@@ -35,6 +35,7 @@ async function readServerMessage(res: Response): Promise<string | undefined> {
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
     const res = await fetch(`/api${path}`, {
         ...options,
+        credentials: 'include',
         headers: {
             ...authHeaders(),
             'Content-Type': 'application/json',
