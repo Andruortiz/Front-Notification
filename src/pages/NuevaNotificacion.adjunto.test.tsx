@@ -91,7 +91,7 @@ interface UploadStep {
 
 function uploadHandlers(id: string, steps: UploadStep[], calls: string[] = []) {
     let polls = 0;
-    const uploadUrl = `https://minio.test/bucket/${id}`;
+    const attachmentUrl = `https://minio.test/bucket/${id}`;
     return [
         http.post('*/attachment-uploads', async ({ request }) => {
             calls.push('issue');
@@ -103,7 +103,9 @@ function uploadHandlers(id: string, steps: UploadStep[], calls: string[] = []) {
                     fileName: 'grande.pdf',
                     contentType: body.contentType,
                     sizeBytes: body.sizeBytes,
-                    uploadUrl,
+                    uploadUrl: 'https://minio.test/bucket',
+                    uploadFields: { key: id, policy: 'p', 'x-amz-signature': 's' },
+                    attachmentUrl,
                     expiresAt: '2026-10-01T12:00:00Z',
                 },
                 { status: 201 },
@@ -156,10 +158,9 @@ describe('NuevaNotificacion (adjuntos)', () => {
         server.use(http.get('*/channels', () => HttpResponse.json(catalog)));
         const realFetch = globalThis.fetch;
         vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
-            if (
-                init?.method === 'PUT' &&
-                new Request(input).url.startsWith('https://minio.test/')
-            ) {
+            const target =
+                typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+            if (init?.method === 'POST' && target.startsWith('https://minio.test/')) {
                 storagePuts += 1;
                 return Promise.resolve(new Response(null, { status: putStatus }));
             }
@@ -208,7 +209,7 @@ describe('NuevaNotificacion (adjuntos)', () => {
         ]);
     });
 
-    it('más de 1 MB lo sube, espera el veredicto CLEAN y referencia la uploadUrl en url', async () => {
+    it('más de 1 MB lo sube, espera el veredicto CLEAN y referencia la attachmentUrl en url', async () => {
         const calls: string[] = [];
         const sent: SentNotification[] = [];
         server.use(
@@ -260,7 +261,7 @@ describe('NuevaNotificacion (adjuntos)', () => {
         },
     );
 
-    it('si falla el PUT al almacenamiento, avisa y no envía la notificación', async () => {
+    it('si falla la subida al almacenamiento, avisa y no envía la notificación', async () => {
         const sent: SentNotification[] = [];
         server.use(...uploadHandlers('up-3', [{ state: 'CLEAN' }]), acceptNotifications(sent));
         putStatus = 403;

@@ -30,6 +30,7 @@ export const notificationStatusResponse = (
     channelType: 'EMAIL',
     providerId: null,
     lastUpdatedAt: '2026-09-25T10:00:00Z',
+    correlationId: null,
     ...overrides,
 });
 
@@ -54,6 +55,7 @@ export const batchAcceptedResponse = (
     overrides: Partial<BatchAcceptedResponse> = {},
 ): BatchAcceptedResponse => ({
     batchId: 'batch-1',
+    trackingSaved: true,
     results: [],
     ...overrides,
 });
