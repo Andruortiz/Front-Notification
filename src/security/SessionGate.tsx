@@ -1,16 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { requireSession } from './session';
+import { requireSession, sessionModeUrl } from './session';
 
 type GateState = 'checking' | 'ready' | 'error';
 
-function sessionRequired(): string | null {
-    const pdpUrl = import.meta.env.VITE_PDP_URL;
-    const fixedToken = import.meta.env.VITE_AUTH_TOKEN;
-    return pdpUrl && !fixedToken ? pdpUrl : null;
-}
-
 export default function SessionGate({ children }: { children: ReactNode }) {
-    const pdpUrl = sessionRequired();
+    const pdpUrl = sessionModeUrl();
     const [state, setState] = useState<GateState>(pdpUrl ? 'checking' : 'ready');
     const [attempt, setAttempt] = useState(0);
 

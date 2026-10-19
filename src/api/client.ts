@@ -1,3 +1,4 @@
+import { reloginOnUnauthorized, sessionModeUrl } from '../security/session';
 const AUTH_TOKEN = import.meta.env.VITE_AUTH_TOKEN;
 
 export function authHeaders(): Record<string, string> {
@@ -40,6 +41,12 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
             ...options.headers,
         },
     });
+    if (res.status === 401) {
+        const pdpUrl = sessionModeUrl();
+        if (pdpUrl) {
+            reloginOnUnauthorized(pdpUrl);
+        }
+    }
     if (!res.ok) {
         throw new ApiError(res.status, await readServerMessage(res));
     }

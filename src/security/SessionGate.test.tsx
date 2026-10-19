@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event';
 import SessionGate from './SessionGate';
 import { requireSession } from './session';
 
-vi.mock('./session', () => ({ requireSession: vi.fn() }));
+vi.mock('./session', async (importOriginal) => ({
+    ...(await importOriginal()),
+    requireSession: vi.fn(),
+}));
 
 describe('SessionGate', () => {
     beforeEach(() => {
