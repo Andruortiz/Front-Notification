@@ -52,11 +52,78 @@ describe('Detalle', () => {
 
         renderDetalle('notif-1');
 
-        expect(await screen.findByText('Aceptada')).toBeInTheDocument();
-        expect(screen.getByText(/Fallo recuperable/)).toBeInTheDocument();
-        expect(screen.getByText(/brevo/)).toBeInTheDocument();
+        expect(await screen.findByText('Aceptada por el servicio')).toBeInTheDocument();
+        expect(screen.getByText('Intento 1 · Fallo recuperable')).toBeInTheDocument();
+        expect(screen.getAllByText('brevo').length).toBeGreaterThan(0);
+        expect(screen.getByText('automático')).toBeInTheDocument();
+        expect(screen.getByText('Esperando proveedor')).toBeInTheDocument();
         expect(screen.queryByText('ID')).not.toBeInTheDocument();
         expect(screen.queryByText('notif-1')).not.toBeInTheDocument();
+    });
+
+    it('no muestra el indicador de conexión en vivo', async () => {
+        renderDetalle('notif-1');
+
+        await screen.findByText('Pendiente');
+        expect(screen.queryByText('En vivo')).not.toBeInTheDocument();
+        expect(screen.queryByText('Conectando…')).not.toBeInTheDocument();
+    });
+
+    it('explica el estado y muestra el proveedor que falló y el que entregó', async () => {
+        server.use(
+            http.get('*/notifications/:id', ({ params }) =>
+                HttpResponse.json(
+                    notificationStatusResponse({
+                        notificationId: String(params.id),
+                        status: 'DELIVERED',
+                        providerId: 'twilio',
+                        lastUpdatedAt: '2026-09-25T10:02:00Z',
+                    }),
+                ),
+            ),
+            http.get('*/notifications', () =>
+                HttpResponse.json({
+                    items: [
+                        notificationHistoryItem({
+                            notificationId: 'notif-1',
+                            status: 'DELIVERED',
+                            deliveryAttempts: [
+                                {
+                                    occurredOn: '2026-09-25T10:00:30Z',
+                                    result: 'RECOVERABLE_FAILURE',
+                                    origin: 'AUTOMATIC',
+                                    providerId: 'brevo',
+                                },
+                                {
+                                    occurredOn: '2026-09-25T10:01:30Z',
+                                    result: 'ACCEPTED',
+                                    origin: 'AUTOMATIC',
+                                    providerId: 'twilio',
+                                },
+                            ],
+                        }),
+                    ],
+                    limit: 200,
+                    offset: 0,
+                    hasNext: false,
+                }),
+            ),
+        );
+
+        renderDetalle('notif-1');
+
+        expect(
+            await screen.findByText(
+                'El proveedor aceptó el mensaje. No se requiere ninguna acción.',
+            ),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Duración total')).toBeInTheDocument();
+        expect(screen.getByText('2 min 0 s')).toBeInTheDocument();
+        expect(screen.getByText('falló')).toBeInTheDocument();
+        expect(screen.getByText('entregó')).toBeInTheDocument();
+        expect(screen.getByText('Intento 2 · Aceptado por el proveedor')).toBeInTheDocument();
+        expect(screen.getAllByText('+30 s')).toHaveLength(2);
+        expect(screen.getByText('+1 min 0 s')).toBeInTheDocument();
     });
 
     it('reflects a live status change without reloading the page', async () => {
@@ -74,17 +141,18 @@ describe('Detalle', () => {
         renderDetalle('notif-1');
 
         expect(await screen.findByText('Pendiente')).toBeInTheDocument();
-        await waitFor(() => expect(screen.getByText('En vivo')).toBeInTheDocument());
 
-        emitLiveUpdate({
-            action: 'UPSERT',
-            notification: notificationHistoryItem({
-                notificationId: 'notif-1',
-                status: 'DELIVERED',
+        await waitFor(() =>
+            emitLiveUpdate({
+                action: 'UPSERT',
+                notification: notificationHistoryItem({
+                    notificationId: 'notif-1',
+                    status: 'DELIVERED',
+                }),
             }),
-        });
+        );
 
-        expect(await screen.findByText('Entregada')).toBeInTheDocument();
+        expect(await screen.findByText('Duración total')).toBeInTheDocument();
         expect(requestCount).toBe(2);
     });
 
@@ -102,7 +170,7 @@ describe('Detalle', () => {
 
         renderDetalle('notif-1');
 
-        await screen.findByText('Entregada');
+        await screen.findByText('Duración total');
         expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
     });
 
@@ -129,6 +197,7 @@ describe('Detalle', () => {
 
         const user = userEvent.setup();
         await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+        await user.click(screen.getByRole('button', { name: 'Reintentar ahora' }));
 
         expect(await screen.findByText('Pendiente')).toBeInTheDocument();
     });
@@ -156,6 +225,7 @@ describe('Detalle', () => {
 
         const user = userEvent.setup();
         await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+        await user.click(screen.getByRole('button', { name: 'Reintentar ahora' }));
 
         expect(await screen.findByText('el estado actual no admite reintento')).toBeInTheDocument();
     });
@@ -180,6 +250,7 @@ describe('Detalle', () => {
 
         const user = userEvent.setup();
         await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+        await user.click(screen.getByRole('button', { name: 'Reintentar ahora' }));
 
         expect(
             await screen.findByText('La notificación ya no existe para este cliente.'),
