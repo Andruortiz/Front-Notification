@@ -71,10 +71,12 @@ describe('Detalle', () => {
 
     it('explica el estado y muestra el proveedor que falló y el que entregó', async () => {
         server.use(
-            http.get('*/notifications/:id', ({ params }) =>
+            http.get('*/notifications/detail', ({ request }) =>
                 HttpResponse.json(
                     notificationStatusResponse({
-                        notificationId: String(params.id),
+                        notificationId: String(
+                            new URL(request.url).searchParams.get('notificationId'),
+                        ),
                         status: 'DELIVERED',
                         providerId: 'twilio',
                         lastUpdatedAt: '2026-09-25T10:02:00Z',
@@ -129,11 +131,16 @@ describe('Detalle', () => {
     it('reflects a live status change without reloading the page', async () => {
         let requestCount = 0;
         server.use(
-            http.get('*/notifications/:id', ({ params }) => {
+            http.get('*/notifications/detail', ({ request }) => {
                 requestCount += 1;
                 const status = requestCount === 1 ? 'PENDING' : 'DELIVERED';
                 return HttpResponse.json(
-                    notificationStatusResponse({ notificationId: String(params.id), status }),
+                    notificationStatusResponse({
+                        notificationId: String(
+                            new URL(request.url).searchParams.get('notificationId'),
+                        ),
+                        status,
+                    }),
                 );
             }),
         );
@@ -158,10 +165,12 @@ describe('Detalle', () => {
 
     it('muestra el botón Reintentar solo en FAILED o RECOVERABLE', async () => {
         server.use(
-            http.get('*/notifications/:id', ({ params }) =>
+            http.get('*/notifications/detail', ({ request }) =>
                 HttpResponse.json(
                     notificationStatusResponse({
-                        notificationId: String(params.id),
+                        notificationId: String(
+                            new URL(request.url).searchParams.get('notificationId'),
+                        ),
                         status: 'DELIVERED',
                     }),
                 ),
@@ -176,15 +185,17 @@ describe('Detalle', () => {
 
     it('reintentar con 202 actualiza el estado sin recargar', async () => {
         server.use(
-            http.get('*/notifications/:id', ({ params }) =>
+            http.get('*/notifications/detail', ({ request }) =>
                 HttpResponse.json(
                     notificationStatusResponse({
-                        notificationId: String(params.id),
+                        notificationId: String(
+                            new URL(request.url).searchParams.get('notificationId'),
+                        ),
                         status: 'FAILED',
                     }),
                 ),
             ),
-            http.post(/\/notifications\/([^/]+):retry$/, () =>
+            http.post('*/notification-retries', () =>
                 HttpResponse.json(
                     notificationStatusResponse({ notificationId: 'notif-1', status: 'PENDING' }),
                     { status: 202 },
@@ -204,15 +215,17 @@ describe('Detalle', () => {
 
     it('muestra el mensaje del servidor cuando el reintento devuelve 400', async () => {
         server.use(
-            http.get('*/notifications/:id', ({ params }) =>
+            http.get('*/notifications/detail', ({ request }) =>
                 HttpResponse.json(
                     notificationStatusResponse({
-                        notificationId: String(params.id),
+                        notificationId: String(
+                            new URL(request.url).searchParams.get('notificationId'),
+                        ),
                         status: 'RECOVERABLE',
                     }),
                 ),
             ),
-            http.post(/\/notifications\/([^/]+):retry$/, () =>
+            http.post('*/notification-retries', () =>
                 HttpResponse.json(
                     { message: 'el estado actual no admite reintento' },
                     { status: 400 },
@@ -232,15 +245,17 @@ describe('Detalle', () => {
 
     it('muestra un aviso cuando el reintento devuelve 404', async () => {
         server.use(
-            http.get('*/notifications/:id', ({ params }) =>
+            http.get('*/notifications/detail', ({ request }) =>
                 HttpResponse.json(
                     notificationStatusResponse({
-                        notificationId: String(params.id),
+                        notificationId: String(
+                            new URL(request.url).searchParams.get('notificationId'),
+                        ),
                         status: 'FAILED',
                     }),
                 ),
             ),
-            http.post(/\/notifications\/([^/]+):retry$/, () =>
+            http.post('*/notification-retries', () =>
                 HttpResponse.json({ message: 'no existe' }, { status: 404 }),
             ),
         );

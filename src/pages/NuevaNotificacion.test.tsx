@@ -290,7 +290,7 @@ describe('NuevaNotificacion (varios destinatarios en el mismo campo)', () => {
 
     it('al confirmar muestra canal, mensaje y cantidad, y el envío produce resultado por destinatario con filtro', async () => {
         server.use(
-            http.post('*/notifications:sendBatch', async ({ request }) => {
+            http.post('*/notifications/batches', async ({ request }) => {
                 const body = (await request.json()) as {
                     items: { externalId: string }[];
                 };
@@ -338,7 +338,7 @@ describe('NuevaNotificacion (varios destinatarios en el mismo campo)', () => {
     it('reenvía solo los rechazados sin repetir los aceptados', async () => {
         let sendBatchCallCount = 0;
         server.use(
-            http.post('*/notifications:sendBatch', async ({ request }) => {
+            http.post('*/notifications/batches', async ({ request }) => {
                 sendBatchCallCount += 1;
                 const body = (await request.json()) as { items: { externalId: string }[] };
                 if (sendBatchCallCount === 1) {
@@ -394,7 +394,7 @@ describe('NuevaNotificacion (varios destinatarios en el mismo campo)', () => {
     it('trocea lotes de más de 200 en varias solicitudes y agrega los totales', async () => {
         let callCount = 0;
         server.use(
-            http.post('*/notifications:sendBatch', async ({ request }) => {
+            http.post('*/notifications/batches', async ({ request }) => {
                 callCount += 1;
                 const body = (await request.json()) as { items: { externalId: string }[] };
                 return HttpResponse.json(
@@ -432,7 +432,7 @@ describe('NuevaNotificacion (varios destinatarios en el mismo campo)', () => {
     it('marca como "sin confirmar" los elementos de una solicitud que falla por red y permite reenviarlos', async () => {
         let attempt = 0;
         server.use(
-            http.post('*/notifications:sendBatch', async ({ request }) => {
+            http.post('*/notifications/batches', async ({ request }) => {
                 attempt += 1;
                 if (attempt === 1) {
                     return HttpResponse.error();
@@ -476,7 +476,7 @@ describe('NuevaNotificacion (varios destinatarios en el mismo campo)', () => {
     it('bloquea con el conteo y el máximo al superar 1000 destinatarios, sin enviar nada', async () => {
         let sendBatchCalled = false;
         server.use(
-            http.post('*/notifications:sendBatch', () => {
+            http.post('*/notifications/batches', () => {
                 sendBatchCalled = true;
                 return HttpResponse.json(batchAcceptedResponse(), { status: 202 });
             }),

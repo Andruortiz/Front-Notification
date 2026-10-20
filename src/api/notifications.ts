@@ -28,29 +28,30 @@ export function issueAttachmentUpload(
 }
 
 export function completeAttachmentUpload(uploadId: string): Promise<AttachmentUploadResponse> {
-    return apiFetch<AttachmentUploadResponse>(
-        `/attachment-uploads/${encodeURIComponent(uploadId)}:complete`,
-        { method: 'POST' },
-    );
+    return apiFetch<AttachmentUploadResponse>('/attachment-upload-completions', {
+        method: 'POST',
+        body: JSON.stringify({ uploadId }),
+    });
 }
 
 export function getAttachmentUpload(uploadId: string): Promise<AttachmentUploadResponse> {
     return apiFetch<AttachmentUploadResponse>(
-        `/attachment-uploads/${encodeURIComponent(uploadId)}`,
+        `/attachment-uploads/status?uploadId=${encodeURIComponent(uploadId)}`,
     );
 }
 
 export function sendNotificationBatch(
     request: SendNotificationBatchRequest,
 ): Promise<BatchAcceptedResponse> {
-    return apiFetch<BatchAcceptedResponse>('/notifications:sendBatch', {
+    return apiFetch<BatchAcceptedResponse>('/notifications/batches', {
         method: 'POST',
         body: JSON.stringify(request),
     });
 }
 
 export function retryNotification(id: string): Promise<NotificationStatusResponse> {
-    return apiFetch<NotificationStatusResponse>(`/notifications/${encodeURIComponent(id)}:retry`, {
+    return apiFetch<NotificationStatusResponse>('/notification-retries', {
         method: 'POST',
+        body: JSON.stringify({ notificationId: id }),
     });
 }

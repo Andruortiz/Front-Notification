@@ -34,7 +34,10 @@ export default function Detalle() {
 
     const { data, isLoading, isError, error, dataUpdatedAt } = useQuery({
         queryKey: ['notification', id],
-        queryFn: () => apiFetch<NotificationStatusResponse>(`/notifications/${id}`),
+        queryFn: () =>
+            apiFetch<NotificationStatusResponse>(
+                `/notifications/detail?notificationId=${encodeURIComponent(id ?? '')}`,
+            ),
         enabled: Boolean(id),
     });
     const { data: history, isLoading: historyLoading } = useQuery({

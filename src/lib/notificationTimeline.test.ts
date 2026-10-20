@@ -14,10 +14,16 @@ describe('buildTimeline', () => {
             acceptedAt: '2026-09-25T10:00:00Z',
             lastUpdatedAt: '2026-09-25T10:00:40Z',
             attempts: [
-                { occurredOn: '2026-09-25T10:00:30Z', result: 'ACCEPTED', providerId: 'brevo' },
+                {
+                    occurredOn: '2026-09-25T10:00:30Z',
+                    result: 'ACCEPTED',
+                    origin: 'AUTOMATIC',
+                    providerId: 'brevo',
+                },
                 {
                     occurredOn: '2026-09-25T10:00:10Z',
                     result: 'RECOVERABLE_FAILURE',
+                    origin: 'AUTOMATIC',
                     providerId: 'brevo',
                 },
             ],
@@ -55,9 +61,24 @@ describe('buildTimeline', () => {
 describe('summarizeProviders', () => {
     it('separa los proveedores que fallaron del que entregó', () => {
         const summary = summarizeProviders([
-            { occurredOn: '2026-09-25T10:00:00Z', result: 'RECOVERABLE_FAILURE', providerId: 'a' },
-            { occurredOn: '2026-09-25T10:00:10Z', result: 'PERMANENT_FAILURE', providerId: 'a' },
-            { occurredOn: '2026-09-25T10:00:20Z', result: 'ACCEPTED', providerId: 'b' },
+            {
+                occurredOn: '2026-09-25T10:00:00Z',
+                result: 'RECOVERABLE_FAILURE',
+                origin: 'AUTOMATIC',
+                providerId: 'a',
+            },
+            {
+                occurredOn: '2026-09-25T10:00:10Z',
+                result: 'PERMANENT_FAILURE',
+                origin: 'AUTOMATIC',
+                providerId: 'a',
+            },
+            {
+                occurredOn: '2026-09-25T10:00:20Z',
+                result: 'ACCEPTED',
+                origin: 'AUTOMATIC',
+                providerId: 'b',
+            },
         ]);
 
         expect(summary).toEqual({ failed: ['a'], deliveredBy: 'b' });

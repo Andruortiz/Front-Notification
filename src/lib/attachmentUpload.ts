@@ -87,15 +87,16 @@ async function uploadToStorage(file: File, contentType: string): Promise<Attachm
             contentType,
             sizeBytes: file.size,
         });
-        if (!ticket.uploadUrl) {
+        if (!ticket.uploadUrl || !ticket.uploadFields || !ticket.attachmentUrl) {
             throw new AttachmentError(`El servidor no devolvió dónde subir ${file.name}.`);
         }
-        const put = await fetch(ticket.uploadUrl, {
-            method: 'PUT',
-            headers: { 'Content-Type': contentType },
-            body: file,
-        });
-        if (!put.ok) {
+        const form = new FormData();
+        for (const [name, value] of Object.entries(ticket.uploadFields)) {
+            form.append(name, value);
+        }
+        form.append('file', file);
+        const stored = await fetch(ticket.uploadUrl, { method: 'POST', body: form });
+        if (!stored.ok) {
             throw new AttachmentError(`No se pudo subir ${file.name} al almacenamiento.`);
         }
         completed = await completeAttachmentUpload(ticket.uploadId);
@@ -116,7 +117,7 @@ async function uploadToStorage(file: File, contentType: string): Promise<Attachm
         fileName: file.name,
         contentType,
         sizeBytes: file.size,
-        url: ticket.uploadUrl,
+        url: ticket.attachmentUrl,
     };
 }
 

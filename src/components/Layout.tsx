@@ -4,6 +4,7 @@ const NAV_LINKS = [
     { to: '/', label: 'Notificaciones' },
     { to: '/notificaciones/nueva', label: 'Nueva notificación' },
     { to: '/catalogo', label: 'Catálogo' },
+    { to: '/seguridad', label: 'Seguridad' },
 ];
 
 export default function Layout() {

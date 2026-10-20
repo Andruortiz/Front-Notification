@@ -1,5 +1,6 @@
 import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event-source';
 import { authHeaders } from './client';
+import { reloginOnUnauthorized, sessionModeUrl } from '../security/session';
 import type { components } from './schema';
 
 type NotificationLiveUpdate = components['schemas']['NotificationLiveUpdate'];
@@ -37,10 +38,17 @@ export function subscribeToNotificationUpdates(
 
     handlers.onStateChange('connecting');
 
-    void fetchEventSource(`/api/notifications:subscribe${query ? `?${query}` : ''}`, {
+    void fetchEventSource(`/api/notifications/stream${query ? `?${query}` : ''}`, {
         headers: authHeaders(),
+        credentials: 'include',
         signal,
         onopen(response) {
+            if (response.status === 401) {
+                const pdpUrl = sessionModeUrl();
+                if (pdpUrl) {
+                    reloginOnUnauthorized(pdpUrl);
+                }
+            }
             const contentType = response.headers.get('content-type');
             if (response.ok && contentType?.startsWith(EventStreamContentType)) {
                 handlers.onStateChange('open');
