@@ -1,9 +1,8 @@
-const TENANT_ID = import.meta.env.VITE_TENANT_ID;
+import { reloginOnUnauthorized, sessionModeUrl } from '../security/session';
 const AUTH_TOKEN = import.meta.env.VITE_AUTH_TOKEN;
 
 export function authHeaders(): Record<string, string> {
     return {
-        'X-Tenant-Id': TENANT_ID,
         ...(AUTH_TOKEN ? { Authorization: `Bearer ${AUTH_TOKEN}` } : {}),
     };
 }
@@ -35,12 +34,19 @@ async function readServerMessage(res: Response): Promise<string | undefined> {
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
     const res = await fetch(`/api${path}`, {
         ...options,
+        credentials: 'include',
         headers: {
             ...authHeaders(),
             'Content-Type': 'application/json',
             ...options.headers,
         },
     });
+    if (res.status === 401) {
+        const pdpUrl = sessionModeUrl();
+        if (pdpUrl) {
+            reloginOnUnauthorized(pdpUrl);
+        }
+    }
     if (!res.ok) {
         throw new ApiError(res.status, await readServerMessage(res));
     }

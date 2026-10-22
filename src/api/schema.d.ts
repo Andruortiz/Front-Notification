@@ -10,7 +10,7 @@ export interface paths {
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -18,7 +18,7 @@ export interface paths {
         };
         /**
          * Consultar histórico y trazabilidad
-         * @description CU-05. Busca notificaciones por filtros combinables. Cada resultado incluye su recorrido completo de intentos, no solo el estado actual (a diferencia de GET /notifications/{id}, que solo exige rol CLIENTE). Requiere rol OPERADOR o ADMINISTRADOR.
+         * @description CU-05. Busca notificaciones por filtros combinables. Cada resultado incluye su recorrido completo de intentos, no solo el estado actual (a diferencia de GET /notifications/detail, que solo exige rol CLIENTE). Requiere rol OPERADOR o ADMINISTRADOR.
          */
         get: operations["searchNotifications"];
         put?: never;
@@ -33,13 +33,13 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/notifications:subscribe": {
+    "/notifications/stream": {
         parameters: {
             query?: never;
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -47,7 +47,7 @@ export interface paths {
         };
         /**
          * Suscribirse a actualizaciones en tiempo real
-         * @description Historia "dashboard en tiempo real". Abre un stream Server-Sent Events: primero reproduce la foto vigente de las notificaciones del tenant que cumplen los filtros (equivalente a repetir GET /notifications sin paginar, acotado a 200 resultados), y luego continúa entregando cada cambio relevante mientras la conexión permanezca abierta. Una reconexión (ej. tras una caída de red) es, para el servidor, una solicitud nueva -- siempre reproduce la foto vigente antes de retomar el flujo en vivo, sin necesitar ningún encabezado ni parámetro de reanudación. Excepción de autenticación: el `EventSource` nativo del navegador no permite enviar headers custom, así que esta operación acepta también el token como parámetro de consulta `access_token` -- la única operación del contrato con esta excepción. Si el header `Authorization` está presente, tiene prioridad sobre `access_token`. Un token en la URL puede quedar registrado en logs de acceso de intermediarios fuera del control de este servicio; el servicio mismo no registra esta query string en sus propios logs.
+         * @description Historia "dashboard en tiempo real". Abre un stream Server-Sent Events: primero reproduce la foto vigente de las notificaciones del tenant que cumplen los filtros (equivalente a repetir GET /notifications sin paginar, acotado a 200 resultados), y luego continúa entregando cada cambio relevante mientras la conexión permanezca abierta. Una reconexión (ej. tras una caída de red) es, para el servidor, una solicitud nueva -- siempre reproduce la foto vigente antes de retomar el flujo en vivo, sin necesitar ningún encabezado ni parámetro de reanudación. Autenticación: con cabecera `Authorization: Bearer` o con la cookie de sesión `SECURITY_BASELINE_SESSION` (HU2-111), que un `EventSource` nativo envía con `withCredentials`. La credencial nunca viaja en la dirección de la conexión. Si llega la cabecera `Authorization`, tiene prioridad sobre la cookie. Sin credenciales, o con una sesión inválida, responde 401; si la plataforma de sesiones no responde, 503.
          */
         get: operations["subscribeToNotificationUpdates"];
         put?: never;
@@ -58,13 +58,13 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/notifications:sendBatch": {
+    "/notifications/batches": {
         parameters: {
             query?: never;
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -74,7 +74,7 @@ export interface paths {
         put?: never;
         /**
          * Enviar un lote de notificaciones
-         * @description Implementado. El lote es su propia unidad de seguimiento, no un bucle sobre POST /notifications -- cada elemento se valida e idempotiza por separado, y un elemento inválido no bloquea a los demás. Un elemento con un adjunto inválido, o que referencia una subida todavía en PENDING_SCAN, o rechazado por el catálogo (canal inexistente o deshabilitado, contenido que no cumple la forma del canal), se rechaza solo, con su motivo; los demás siguen. Un elemento que falla por un problema transitorio de infraestructura (por ejemplo el escaner de adjuntos no responde) queda como FAILED en vez de tumbar el lote completo. Los resultados vienen en el mismo orden de los elementos de la solicitud.
+         * @description Implementado. El lote es su propia unidad de seguimiento, no un bucle sobre POST /notifications -- cada elemento se valida e idempotiza por separado, y un elemento inválido no bloquea a los demás. Un elemento con un adjunto inválido, o que referencia una subida todavía en PENDING_SCAN, o rechazado por el catálogo (canal inexistente o deshabilitado, contenido que no cumple la forma del canal), se rechaza solo, con su motivo; los demás siguen. Un elemento que falla por un problema transitorio de infraestructura (por ejemplo el escaner de adjuntos no responde) queda como FAILED en vez de tumbar el lote completo; su motivo es siempre "Internal error". Los resultados vienen en el mismo orden de los elementos de la solicitud. Un lote admite hasta 500 elementos. Un reenvío con el mismo batchId del mismo tenant devuelve el resultado original solo si el registro del lote quedó guardado; si el guardado falló (trackingSaved=false) no hay registro y el reenvío vuelve a procesar los elementos (la deduplicación por externalId evita duplicar notificaciones).
          */
         post: operations["sendNotificationBatch"];
         delete?: never;
@@ -83,13 +83,13 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/notifications/{id}": {
+    "/notifications/detail": {
         parameters: {
             query?: never;
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -108,13 +108,13 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/notifications/{id}:retry": {
+    "/notification-retries": {
         parameters: {
             query?: never;
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -139,7 +139,7 @@ export interface paths {
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -149,7 +149,7 @@ export interface paths {
         put?: never;
         /**
          * Pedir una dirección de subida para un archivo grande
-         * @description Emite una dirección prefirmada (PUT) para subir al almacén del servicio un archivo de más de 1 MB y hasta 10 MB. La subida nace en PENDING_SCAN. Después de subir el archivo con un PUT a uploadUrl (antes de expiresAt), avisar con POST /attachment-uploads/{uploadId}:complete. uploadUrl es una credencial temporal: solo aparece en esta respuesta.
+         * @description Emite una política de subida firmada (formulario multipart por POST) para subir al almacén del servicio un archivo de más de 1 MB y hasta 10 MB. La subida nace en PENDING_SCAN. El cliente envía un POST multipart a uploadUrl con todos los campos de uploadFields y el campo "file" al final, antes de expiresAt; el almacén rechaza un archivo de tamaño distinto de sizeBytes o de un tipo distinto de contentType. Después avisa con POST /attachment-upload-completions y referencia el archivo en la notificación con attachmentUrl. uploadFields es una credencial temporal: solo aparece en esta respuesta.
          */
         post: operations["issueAttachmentUpload"];
         delete?: never;
@@ -158,13 +158,13 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/attachment-uploads/{uploadId}:complete": {
+    "/attachment-upload-completions": {
         parameters: {
             query?: never;
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -174,7 +174,7 @@ export interface paths {
         put?: never;
         /**
          * Avisar que la subida terminó
-         * @description Comprueba que el archivo está en el almacén y que su tamaño coincide con el declarado, y encola su análisis. La subida sigue en PENDING_SCAN hasta que el análisis termina en CLEAN o INFECTED. Si la subida ya está resuelta, devuelve su estado sin volver a analizar.
+         * @description Comprueba que el archivo está en el almacén y que su tamaño coincide con el declarado, y encola su análisis. La subida sigue en PENDING_SCAN hasta que el análisis termina en CLEAN, INFECTED o FAILED. Si la subida ya está resuelta, o si otra llamada simultánea ganó la transición, devuelve su estado vigente sin volver a analizar. Si la subida ya venció, responde 409 y pasa a FAILED.
          */
         post: operations["completeAttachmentUpload"];
         delete?: never;
@@ -183,13 +183,13 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/attachment-uploads/{uploadId}": {
+    "/attachment-uploads/status": {
         parameters: {
             query?: never;
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -211,7 +211,7 @@ export interface paths {
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -222,52 +222,6 @@ export interface paths {
          * @description CU-07 (lectura). Devuelve los canales que el enrutamiento está usando en este momento, cada uno con sus proveedores en orden de preferencia y el estado de cada proveedor. Hoy el despacho usa solo el proveedor en la posición 1; los demás se listan en su orden pero no se usan como respaldo automático. El catálogo es del despliegue, no del tenant: la respuesta es la misma para cualquier identidad autenticada. Un cambio guardado en el catálogo aparece aquí en el mismo refresco en que el enrutamiento empieza a usarlo. Ningún campo contiene el valor de una credencial.
          */
         get: operations["listChannels"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/providers": {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
-                traceparent?: components["parameters"]["TraceParent"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Consultar los proveedores, su estado y dónde se usan
-         * @description CU-08 (lectura). Devuelve la unión de los proveedores con adaptador en este despliegue y los que nombra el catálogo, cada uno con su estado y los canales en que aparece. MISSING_ADAPTER indica que el catálogo nombra un proveedor para el que el despliegue no tiene adaptador. El estado de habilitación es el de configuración de la réplica que responde, no la salud actual del proveedor. Misma respuesta para cualquier identidad autenticada; ningún campo contiene el valor de una credencial.
-         */
-        get: operations["listProviders"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/channels:register": {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
-                traceparent?: components["parameters"]["TraceParent"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
         put?: never;
         /**
          * Registrar o actualizar un canal
@@ -280,19 +234,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/providers:register": {
+    "/providers": {
         parameters: {
             query?: never;
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Consultar los proveedores, su estado y dónde se usan
+         * @description CU-08 (lectura). Devuelve la unión de los proveedores con adaptador en este despliegue y los que nombra el catálogo, cada uno con su estado y los canales en que aparece. MISSING_ADAPTER indica que el catálogo nombra un proveedor para el que el despliegue no tiene adaptador. El estado de habilitación es el de configuración de la réplica que responde, no la salud actual del proveedor. Misma respuesta para cualquier identidad autenticada; ningún campo contiene el valor de una credencial.
+         */
+        get: operations["listProviders"];
         put?: never;
         /**
          * Registrar un proveedor para uno o más canales
@@ -305,13 +263,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/recipients/{recipientId}/preferences": {
+    "/configuration": {
         parameters: {
             query?: never;
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
+                traceparent?: components["parameters"]["TraceParent"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar los parámetros gestionables y la configuración en uso
+         * @description CU-11 (lectura). Requiere permiso de ADMINISTRADOR. Devuelve el registro de parámetros que el servicio permite gestionar y, para la réplica que responde, la versión de la configuración en uso, su origen y las claves aceptadas que esperan un reinicio. Ningún campo contiene credenciales, topología de colas ni direcciones base.
+         */
+        get: operations["getConfiguration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recipients/preferences": {
+        parameters: {
+            query: {
+                /** @description Identificador del destinatario, estable entre canales. Se codifica como porcentaje en la query. */
+                recipientId: components["parameters"]["RecipientId"];
+            };
+            header?: {
+                /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -322,33 +308,12 @@ export interface paths {
          * @description CU-09. Devuelve las preferencias vigentes del destinatario dentro del tenant del encabezado. Un destinatario que nunca declaró preferencias no es un error: se devuelve el valor por defecto (optedOutAll false, acceptedChannels vacía -- todos los canales aceptados -- y updatedAt nulo). Las preferencias de un tenant nunca son visibles desde otro, aunque usen el mismo recipientId. Requiere rol CLIENTE o superior. Planificada: sin controlador REST todavía (el mapeo de rol queda documentado para cuando exista).
          */
         get: operations["getRecipientPreferences"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/recipients/{recipientId}:updatePreferences": {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
-                traceparent?: components["parameters"]["TraceParent"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
         /**
          * Actualizar las preferencias de un destinatario
          * @description CU-09. Reemplaza por completo las preferencias del destinatario dentro del tenant del encabezado: por qué canales acepta ser contactado, o su baja total (optedOutAll). Desde el siguiente despacho -- incluidas las notificaciones ya aceptadas que aún no se enviaron y los reintentos --, una notificación de ese destinatario termina en DISCARDED sin contactar a ningún proveedor si está dado de baja o si su canal no está entre los aceptados. La aceptación de notificaciones no cambia, y las notificaciones ya terminales no se modifican. Requiere rol CLIENTE o superior. Planificada: sin controlador REST todavía (el mapeo de rol queda documentado para cuando exista).
          */
-        post: operations["updateRecipientPreferences"];
+        put: operations["updateRecipientPreferences"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -366,7 +331,7 @@ export interface components {
              */
             externalId: string;
             /**
-             * @description Canal registrado en el catálogo. La configuración por defecto declara EMAIL, SMS y PUSH.
+             * @description Canal registrado en el catálogo. La configuración por defecto declara EMAIL, SMS, PUSH y WHATSAPP.
              * @example EMAIL
              */
             channelType: string;
@@ -376,22 +341,40 @@ export interface components {
              */
             recipientId: string;
             /**
-             * @description Dirección concreta del canal usado en este envío (email, teléfono, etc.). En SMS es un número en formato internacional (signo +, código de país y número, ej. +573001234567); un número sin ese formato termina en FAILED sin enviarse. En PUSH es el identificador de dispositivo que el proveedor de push emitió a la aplicación cliente (ej. device-token-demo-1234); se trata como texto opaco y no se valida su forma: un identificador inválido o caducado termina en FAILED sin reintentos.
+             * @description Dirección concreta del canal usado en este envío (email, teléfono, etc.). En SMS es un número en formato internacional (signo +, código de país y número, ej. +573001234567); un número sin ese formato termina en FAILED sin enviarse. En PUSH es el identificador de dispositivo que el proveedor de push emitió a la aplicación cliente (ej. device-token-demo-1234); se trata como texto opaco y no se valida su forma: un identificador inválido o caducado termina en FAILED sin reintentos. En WHATSAPP es un número en formato internacional (ej. +573001234567); un número sin ese formato, o sin cuenta de WhatsApp, termina en FAILED sin reintentos.
              * @example alice@example.com
              */
             recipientAddress: string;
             /**
-             * @description Opcional -- algunos canales (ej. SMS) no lo usan. En SMS se admite y se ignora: no se envía ni se antepone al cuerpo. En PUSH es el título visible, opcional, de hasta 100 caracteres.
+             * @description Opcional -- algunos canales (ej. SMS) no lo usan. En SMS se admite y se ignora: no se envía ni se antepone al cuerpo. En PUSH es el título visible, opcional, de hasta 100 caracteres. En WHATSAPP se admite y se ignora.
              * @example Bienvenida
              */
             subject?: string | null;
             /**
-             * @description Cuerpo de la notificación. La longitud máxima la fija la forma de contenido del canal en el catálogo; en SMS son 160 caracteres y en PUSH 900 por defecto. Un contenido más largo se rechaza con 400 y nunca se trunca.
+             * @description Cuerpo de la notificación. Obligatorio salvo que se envíe providerTemplate; no puede enviarse junto con providerTemplate. La longitud máxima la fija la forma de contenido del canal en el catálogo; en SMS son 160 caracteres, en PUSH 900 y en WHATSAPP 1600 por defecto. Un contenido más largo se rechaza con 400 y nunca se trunca.
              * @example Hola Alice, tu pedido fue confirmado.
              */
-            body: string;
+            body?: string | null;
+            /** @description Opcional. Envía una plantilla aprobada por el proveedor en lugar de un cuerpo libre; excluyente con body. El canal debe declararla en su forma de contenido (GET /channels, contentSchema, propiedad providerTemplate); con la configuración por defecto solo WHATSAPP lo hace y cualquier otro canal rechaza la notificación con 400. Fuera de la ventana de 24 h de WhatsApp solo se admiten plantillas; un texto libre que el proveedor rechaza por estar fuera de la ventana termina en FAILED sin reintentos. El servicio valida la forma (referencia presente, a lo sumo 20 variables de hasta 1024 caracteres); que la plantilla exista y esté aprobada, y que no falte ninguna de sus variables, lo decide el proveedor al enviar y un rechazo termina en FAILED. */
+            providerTemplate?: {
+                /**
+                 * @description Identificador de la plantilla aprobada ante el proveedor.
+                 * @example HXb5b62575e6e4ff6129ad7c8efe1f983e
+                 */
+                templateId: string;
+                /**
+                 * @description Valores de las variables de la plantilla, por nombre.
+                 * @example {
+                 *       "1": "Alice",
+                 *       "2": "42"
+                 *     }
+                 */
+                variables?: {
+                    [key: string]: string;
+                };
+            } | null;
             priority: components["schemas"]["Priority"];
-            /** @description Opcional. Archivos que acompañan la notificación, en el orden en que se entregarán. El canal debe declararlos en su forma de contenido (ver GET /channels, campo contentSchema, propiedad attachments); un canal que no los declara rechaza toda notificación con adjuntos. Con la configuración por defecto ningún canal los declara. Cada adjunto lleva exactamente uno de content (archivo de hasta 1 MB codificado en Base64) o url (archivo de más de 1 MB subido antes con POST /attachment-uploads y en estado CLEAN). A lo sumo 5 adjuntos y 25 MB (26214400 bytes) en total. El servicio verifica el tipo real de cada archivo y lo analiza con un antivirus. Una notificación con un adjunto inválido se rechaza completa; nunca se acepta sin el adjunto. Si el proveedor que la despacha no sabe enviar adjuntos, termina en FAILED sin enviarse. */
+            /** @description Opcional. Archivos que acompañan la notificación, en el orden en que se entregarán. El canal debe declararlos en su forma de contenido (ver GET /channels, campo contentSchema, propiedad attachments); un canal que no los declara rechaza toda notificación con adjuntos. Con la configuración por defecto ningún canal los declara (tampoco WHATSAPP). Cada adjunto lleva exactamente uno de content (archivo de hasta 1 MB codificado en Base64) o url (archivo de más de 1 MB subido antes con POST /attachment-uploads y en estado CLEAN). A lo sumo 5 adjuntos y 25 MB (26214400 bytes) en total. El servicio verifica el tipo real de cada archivo y lo analiza con un antivirus. Una notificación con un adjunto inválido se rechaza completa; nunca se acepta sin el adjunto. Si el proveedor que la despacha no sabe enviar adjuntos, termina en FAILED sin enviarse. */
             attachments?: components["schemas"]["Attachment"][] | null;
         };
         Attachment: {
@@ -418,7 +401,7 @@ export interface components {
             content?: string;
             /**
              * Format: uri
-             * @description uploadUrl devuelta por POST /attachment-uploads para el mismo tenant, cuya subida está en estado CLEAN. Cualquier otra dirección se rechaza; el servicio no la descarga. La parte de consulta se ignora y la dirección no se guarda.
+             * @description attachmentUrl devuelta por POST /attachment-uploads para el mismo tenant, cuya subida está en estado CLEAN. Cualquier otra dirección se rechaza; el servicio no la descarga. La parte de consulta se ignora y la dirección no se guarda.
              */
             url?: string;
         } & (unknown | unknown);
@@ -441,7 +424,7 @@ export interface components {
             sizeBytes: number;
         };
         /** @enum {string} */
-        AttachmentUploadState: "PENDING_SCAN" | "CLEAN" | "INFECTED";
+        AttachmentUploadState: "PENDING_SCAN" | "CLEAN" | "INFECTED" | "FAILED";
         AttachmentUploadResponse: {
             uploadId: string;
             state: components["schemas"]["AttachmentUploadState"];
@@ -452,27 +435,36 @@ export interface components {
             /** @description Huella SHA-256 en hexadecimal, desde que termina el análisis. */
             sha256?: string | null;
             /**
-             * @description Solo en INFECTED.
+             * @description Solo en INFECTED (MALWARE, CONTENT_TYPE_MISMATCH) y en FAILED (los demás).
              * @enum {string|null}
              */
-            rejectionReason?: "MALWARE" | "CONTENT_TYPE_MISMATCH" | null;
+            rejectionReason?: "MALWARE" | "CONTENT_TYPE_MISMATCH" | "OBJECT_MISSING" | "SIZE_MISMATCH" | "SCAN_EXHAUSTED" | "EXPIRED" | null;
             /**
              * Format: uri
-             * @description Solo en la respuesta de POST /attachment-uploads. Credencial temporal.
+             * @description Destino del formulario multipart. Solo en la respuesta de POST /attachment-uploads.
              */
             uploadUrl?: string | null;
+            /** @description Campos firmados del formulario multipart (política con tamaño exacto y tipo declarado). Solo en la respuesta de POST /attachment-uploads. Credencial temporal. */
+            uploadFields?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Format: uri
+             * @description Dirección con la que una notificación referencia este archivo (Attachment.url). Solo en la respuesta de POST /attachment-uploads. No contiene firma.
+             */
+            attachmentUrl?: string | null;
             /**
              * Format: date-time
-             * @description Vencimiento de uploadUrl. Solo en la respuesta de POST /attachment-uploads.
+             * @description Vencimiento de la política de subida. Solo en la respuesta de POST /attachment-uploads.
              */
             expiresAt?: string | null;
         };
         SendNotificationResponse: {
             /** Format: uuid */
-            notificationId?: string;
-            status?: components["schemas"]["NotificationStatus"];
+            notificationId: string;
+            status: components["schemas"]["NotificationStatus"];
             /** @description true si ya existía una notificación con el mismo (tenantId, externalId). */
-            duplicate?: boolean;
+            duplicate: boolean;
         };
         SendNotificationBatchRequest: {
             /** @description Opcional -- si no se envía, el componente genera uno. */
@@ -480,35 +472,37 @@ export interface components {
             items: components["schemas"]["SendNotificationRequest"][];
         };
         BatchAcceptedResponse: {
-            batchId?: string;
-            results?: components["schemas"]["BatchItemResult"][];
+            batchId: string;
+            /** @description true si el registro del lote quedó guardado o ya existía; false si el guardado falló y el seguimiento del lote no está disponible. */
+            trackingSaved: boolean;
+            results: components["schemas"]["BatchItemResult"][];
         };
         BatchItemResult: {
-            externalId?: string;
+            externalId: string;
             /**
              * @description REJECTED es un rechazo de negocio (canal, contenido o adjunto invalido). FAILED es un problema transitorio de infraestructura (por ejemplo el escaner de adjuntos no responde); el cliente puede reintentar ese elemento.
              * @enum {string}
              */
-            outcome?: "ACCEPTED" | "DUPLICATE" | "REJECTED" | "FAILED";
+            outcome: "ACCEPTED" | "DUPLICATE" | "REJECTED" | "FAILED";
             /**
              * Format: uuid
              * @description Nulo cuando outcome es REJECTED o FAILED.
              */
-            notificationId?: string | null;
-            /** @description Solo presente cuando outcome es REJECTED o FAILED. */
-            rejectionReason?: string | null;
+            notificationId: string | null;
+            /** @description Solo presente cuando outcome es REJECTED o FAILED. Para FAILED el valor es siempre "Internal error"; los rechazos de negocio conservan su texto. */
+            rejectionReason: string | null;
         };
         NotificationStatusResponse: {
             /** Format: uuid */
-            notificationId?: string;
-            status?: components["schemas"]["NotificationStatus"];
-            channelType?: string;
+            notificationId: string;
+            status: components["schemas"]["NotificationStatus"];
+            channelType: string;
             /** @description Proveedor del último intento de envío. Nulo si aún no se ha intentado despachar. */
-            providerId?: string | null;
+            providerId: string | null;
             /** Format: date-time */
-            lastUpdatedAt?: string;
+            lastUpdatedAt: string;
             /** @description Identificador de correlación con el que se aceptó la notificación. Nulo en notificaciones anteriores a la introducción del identificador. */
-            correlationId?: string | null;
+            correlationId: string | null;
         };
         NotificationSearchResponse: {
             items: components["schemas"]["NotificationHistoryItem"][];
@@ -521,23 +515,23 @@ export interface components {
         };
         NotificationHistoryItem: {
             /** Format: uuid */
-            notificationId?: string;
-            externalId?: string;
-            recipientId?: string;
-            channelType?: string;
-            status?: components["schemas"]["NotificationStatus"];
+            notificationId: string;
+            externalId: string;
+            recipientId: string;
+            channelType: string;
+            status: components["schemas"]["NotificationStatus"];
             /** Format: date-time */
-            acceptedAt?: string;
-            deliveryAttempts?: components["schemas"]["DeliveryAttempt"][];
+            acceptedAt: string;
+            deliveryAttempts: components["schemas"]["DeliveryAttempt"][];
         };
         DeliveryAttempt: {
             /** Format: date-time */
-            occurredOn?: string;
+            occurredOn: string;
             /** @enum {string} */
-            result?: "ACCEPTED" | "RECOVERABLE_FAILURE" | "PERMANENT_FAILURE";
+            result: "ACCEPTED" | "RECOVERABLE_FAILURE" | "PERMANENT_FAILURE";
             /** @enum {string} */
-            origin?: "MANUAL" | "AUTOMATIC";
-            providerId?: string;
+            origin: "MANUAL" | "AUTOMATIC";
+            providerId: string;
         };
         RegisterChannelRequest: {
             /** @example SMS */
@@ -608,6 +602,38 @@ export interface components {
              */
             statusReason: string | null;
         };
+        ConfigurationResponse: {
+            /**
+             * Format: int64
+             * @description Versión asignada por el Componente de Parámetros; 0 para los valores por defecto.
+             */
+            version: number;
+            /** @enum {string} */
+            source: "PARAMETERS" | "LAST_KNOWN" | "DEFAULTS";
+            /** Format: date-time */
+            adoptedAt: string;
+            pendingRestart: string[];
+            parameters: components["schemas"]["ParameterDescriptorResponse"][];
+        };
+        ParameterDescriptorResponse: {
+            /** @example provider.brevo.timeout-ms */
+            key: string;
+            /** @enum {string} */
+            type: "INTEGER";
+            /** Format: int64 */
+            defaultValue: number;
+            /** Format: int64 */
+            currentValue: number;
+            /** Format: int64 */
+            min: number;
+            /** Format: int64 */
+            max: number;
+            /** @enum {string} */
+            scope: "GLOBAL" | "CHANNEL" | "PROVIDER";
+            scopeIds?: string[];
+            /** @enum {string} */
+            adoption: "HOT" | "RESTART";
+        };
         ProviderCatalogResponse: {
             items: components["schemas"]["ProviderItem"][];
         };
@@ -624,9 +650,36 @@ export interface components {
             }[];
         };
         ErrorResponse: {
+            /**
+             * @description Código estable del error, con formato NTF-<número>; el prefijo del número indica la categoría (1 validación, 2 autenticación y autorización, 3 negocio, 4 proveedor, 5 infraestructura).
+             * @enum {string}
+             */
+            code: "NTF-1001" | "NTF-1002" | "NTF-1003" | "NTF-1004" | "NTF-1005" | "NTF-2001" | "NTF-2002" | "NTF-2003" | "NTF-3000" | "NTF-3001" | "NTF-3002" | "NTF-3003" | "NTF-3004" | "NTF-3005" | "NTF-3006" | "NTF-3007" | "NTF-3008" | "NTF-3010" | "NTF-3011" | "NTF-3012" | "NTF-3020" | "NTF-3021" | "NTF-3030" | "NTF-4000" | "NTF-4002" | "NTF-4010" | "NTF-4011" | "NTF-4012" | "NTF-4020" | "NTF-4021" | "NTF-5000" | "NTF-5001" | "NTF-5002" | "NTF-5003" | "NTF-5004" | "NTF-5005" | "NTF-5006" | "NTF-5007" | "NTF-5010" | "NTF-5020" | "NTF-5021" | "NTF-5022" | "NTF-5030" | "NTF-5040" | "NTF-5050" | "NTF-5060";
             message?: string;
             /** @description Identificador de correlación de la petición que produjo el error. */
             correlationId: string;
+        };
+        PepErrorResponse: {
+            /**
+             * Format: uri
+             * @description Siempre urn:security-pep:error:<code en minúsculas>.
+             * @example urn:security-pep:error:access_denied
+             */
+            type: string;
+            /** @description Igual a code. */
+            title: string;
+            /** @enum {integer} */
+            status: 401 | 403 | 503;
+            /**
+             * @description Texto estándar del estado HTTP.
+             * @example Forbidden
+             */
+            detail: string;
+            /**
+             * @description TOKEN_INVALID acompaña al 401, ACCESS_DENIED al 403 y PEP_UNAVAILABLE al 503.
+             * @enum {string}
+             */
+            code: "TOKEN_INVALID" | "ACCESS_DENIED" | "PEP_UNAVAILABLE";
         };
         /** @enum {string} */
         Priority: "LOW" | "NORMAL" | "HIGH";
@@ -642,22 +695,56 @@ export interface components {
         };
     };
     responses: {
-        /** @description Sin token, token mal formado, firma inválida, expirado, o con alguna claim obligatoria (sub, tenantId, role) ausente o con role fuera de ADMINISTRADOR/OPERADOR/CLIENTE. El cuerpo nunca detalla la causa criptográfica exacta del rechazo. */
+        /** @description Sin credencial, credencial mal formada, firma inválida, expirada, o con alguna claim obligatoria (sub, tenantId, role) ausente o con role fuera de ADMINISTRADOR/OPERADOR/CLIENTE. También cuando la cookie de sesión es inválida, expirada o revocada. Responde ErrorResponse (NTF-2001) cuando lo rechaza el servicio, con Bearer o con cookie; con el PEP activo puede responder PepErrorResponse con code TOKEN_INVALID. El cuerpo nunca detalla la causa criptográfica exacta del rechazo. */
         Unauthorized: {
             headers: {
                 "X-Correlation-Id": components["headers"]["CorrelationId"];
-                traceparent: components["headers"]["TraceParent"];
+                "X-Decision-Id": components["headers"]["DecisionId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+                "application/problem+json": components["schemas"]["PepErrorResponse"];
+            };
+        };
+        /** @description Credencial válida, pero el rol no alcanza el mínimo requerido por esta operación. Con el modo interino responde ErrorResponse (NTF-2002); con el PEP activo responde PepErrorResponse con code ACCESS_DENIED. */
+        Forbidden: {
+            headers: {
+                "X-Correlation-Id": components["headers"]["CorrelationId"];
+                "X-Decision-Id": components["headers"]["DecisionId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+                "application/problem+json": components["schemas"]["PepErrorResponse"];
+            };
+        };
+        /** @description El PEP no pudo decidir el acceso (PEP_UNAVAILABLE) o la plataforma de sesiones no respondió a tiempo al resolver la cookie de sesión (ErrorResponse, NTF-2003). La solicitud no llegó a ejecutarse y puede reintentarse. */
+        PepUnavailable: {
+            headers: {
+                "X-Correlation-Id": components["headers"]["CorrelationId"];
+                "X-Decision-Id": components["headers"]["DecisionId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+                "application/problem+json": components["schemas"]["PepErrorResponse"];
+            };
+        };
+        /** @description Conflicto con el estado actual del recurso: modificación concurrente de la notificación, clave externalId ya aceptada para el tenant o transición de estado no permitida. El mensaje es fijo y no incluye datos de otros recursos. */
+        Conflict: {
+            headers: {
+                "X-Correlation-Id": components["headers"]["CorrelationId"];
                 [name: string]: unknown;
             };
             content: {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description Token válido, pero el rol no alcanza el mínimo requerido por esta operación. */
-        Forbidden: {
+        /** @description Error inesperado. El cuerpo lleva un mensaje genérico y el correlationId para localizar la causa en los logs; nunca el mensaje interno de la excepción. */
+        InternalError: {
             headers: {
                 "X-Correlation-Id": components["headers"]["CorrelationId"];
-                traceparent: components["headers"]["TraceParent"];
                 [name: string]: unknown;
             };
             content: {
@@ -668,11 +755,11 @@ export interface components {
     parameters: {
         /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
         CorrelationId: string;
-        /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+        /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
         TraceParent: string;
         /** @description Identificador de la notificación. */
         NotificationId: string;
-        /** @description Identificador del destinatario, estable entre canales. */
+        /** @description Identificador del destinatario, estable entre canales. Se codifica como porcentaje en la query. */
         RecipientId: string;
         /** @description Identificador de la subida emitida por POST /attachment-uploads. */
         UploadId: string;
@@ -681,8 +768,8 @@ export interface components {
     headers: {
         /** @description Identificador de correlación de la petición (el recibido si es válido, o uno generado). */
         CorrelationId: string;
-        /** @description Cabecera W3C traceparent recibida y válida; ausente si no llegó. */
-        TraceParent: string;
+        /** @description Identificador de la decisión del PEP que autorizó o rechazó la solicitud. Presente cuando el PEP responde. */
+        DecisionId: string;
     };
     pathItems: never;
 }
@@ -706,7 +793,7 @@ export interface operations {
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -718,7 +805,6 @@ export interface operations {
             200: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -729,7 +815,6 @@ export interface operations {
             400: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -738,6 +823,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["PepUnavailable"];
         };
     };
     sendNotification: {
@@ -746,7 +832,7 @@ export interface operations {
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -762,7 +848,6 @@ export interface operations {
             202: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -773,7 +858,6 @@ export interface operations {
             400: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -781,11 +865,11 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
-            /** @description Un adjunto referencia una subida todavía en PENDING_SCAN. Reintentar cuando GET /attachment-uploads/{uploadId} devuelva CLEAN. */
+            403: components["responses"]["Forbidden"];
+            /** @description Un adjunto referencia una subida todavía en PENDING_SCAN. Reintentar cuando GET /attachment-uploads/status?uploadId=... devuelva CLEAN. Una subida en FAILED se rechaza con 400. También responde 409 ante una modificación concurrente, una clave externalId ya aceptada o una transición de estado no permitida, con mensaje fijo. */
             409: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -796,20 +880,23 @@ export interface operations {
             413: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description El antivirus o el almacén de archivos no están disponibles o no respondieron a tiempo. La notificación no se aceptó; puede reintentarse. Las notificaciones sin adjuntos no se ven afectadas. */
-            503: {
-                headers: {
-                    "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            500: components["responses"]["InternalError"];
+            /** @description El antivirus o el almacén de archivos no están disponibles o no respondieron a tiempo. La notificación no se aceptó; puede reintentarse. Las notificaciones sin adjuntos no se ven afectadas. También lo devuelve el PEP (PEP_UNAVAILABLE) cuando no puede decidir el acceso. */
+            503: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    "X-Decision-Id": components["headers"]["DecisionId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                    "application/problem+json": components["schemas"]["PepErrorResponse"];
                 };
             };
         };
@@ -817,8 +904,6 @@ export interface operations {
     subscribeToNotificationUpdates: {
         parameters: {
             query?: {
-                /** @description Token JWT, equivalente a `Authorization: Bearer <token>`. Solo para esta operación (limitación de EventSource). Ignorado si el header Authorization está presente. */
-                access_token?: string;
                 recipientId?: string;
                 channelType?: string;
                 status?: components["schemas"]["NotificationStatus"];
@@ -830,7 +915,7 @@ export interface operations {
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -842,14 +927,26 @@ export interface operations {
             200: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
                     "text/event-stream": components["schemas"]["NotificationLiveUpdate"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
+            /** @description Sin credenciales, cabecera `Authorization` inválida o cookie de sesión inválida. */
+            401: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    "X-Decision-Id": components["headers"]["DecisionId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                    "application/problem+json": components["schemas"]["PepErrorResponse"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["PepUnavailable"];
         };
     };
     sendNotificationBatch: {
@@ -858,7 +955,7 @@ export interface operations {
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -874,18 +971,16 @@ export interface operations {
             202: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["BatchAcceptedResponse"];
                 };
             };
-            /** @description La solicitud no cumple el esquema (lista de elementos vacía o ausente, campo obligatorio ausente o vacío en algún elemento, prioridad desconocida, batchId en blanco). Se rechaza completa y no se acepta ningún elemento. */
+            /** @description La solicitud no cumple el esquema (lista de elementos vacía, ausente o con más de 500 elementos, campo obligatorio ausente o vacío en algún elemento, prioridad desconocida, batchId en blanco). Se rechaza completa sin procesar ningún elemento. */
             400: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -893,21 +988,25 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+            503: components["responses"]["PepUnavailable"];
         };
     };
     getNotificationStatus: {
         parameters: {
-            query?: never;
+            query: {
+                /** @description Identificador de la notificación. */
+                notificationId: components["parameters"]["NotificationId"];
+            };
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
-            path: {
-                /** @description Identificador de la notificación. */
-                id: components["parameters"]["NotificationId"];
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -916,25 +1015,35 @@ export interface operations {
             200: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationStatusResponse"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
-            /** @description No existe una notificación con ese id, o no pertenece al tenant del solicitante -- ambos casos responden igual, para no revelar si el id existe bajo otro cliente. */
-            404: {
+            /** @description El parámetro notificationId falta o no es un identificador válido. */
+            400: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description No existe una notificación con ese id, o no pertenece al tenant del solicitante -- ambos casos responden igual, para no revelar si el id existe bajo otro cliente. */
+            404: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            503: components["responses"]["PepUnavailable"];
         };
     };
     retryNotification: {
@@ -943,22 +1052,28 @@ export interface operations {
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
-            path: {
-                /** @description Identificador de la notificación. */
-                id: components["parameters"]["NotificationId"];
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description Identificador de la notificación que se reintenta.
+                     */
+                    notificationId: string;
+                };
+            };
+        };
         responses: {
             /** @description Reintento aceptado, la notificación vuelve al flujo de despacho. */
             202: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -969,7 +1084,6 @@ export interface operations {
             400: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -982,13 +1096,15 @@ export interface operations {
             404: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+            503: components["responses"]["PepUnavailable"];
         };
     };
     issueAttachmentUpload: {
@@ -997,7 +1113,7 @@ export interface operations {
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -1013,8 +1129,7 @@ export interface operations {
             201: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
-                    /** @description /attachment-uploads/{uploadId} */
+                    /** @description /attachment-uploads/status?uploadId=<uploadId> */
                     Location?: string;
                     [name: string]: unknown;
                 };
@@ -1026,7 +1141,6 @@ export interface operations {
             400: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1034,15 +1148,19 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
-            /** @description El almacén de archivos no está disponible. */
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+            /** @description El almacén de archivos no está disponible. También lo devuelve el PEP (PEP_UNAVAILABLE) cuando no puede decidir el acceso. */
             503: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
+                    "X-Decision-Id": components["headers"]["DecisionId"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                    "application/problem+json": components["schemas"]["PepErrorResponse"];
                 };
             };
         };
@@ -1053,33 +1171,35 @@ export interface operations {
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
-            path: {
-                /** @description Identificador de la subida emitida por POST /attachment-uploads. */
-                uploadId: components["parameters"]["UploadId"];
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Identificador de la subida emitida por POST /attachment-uploads. */
+                    uploadId: string;
+                };
+            };
+        };
         responses: {
             /** @description Análisis encolado, o subida ya resuelta (ver state). */
             202: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["AttachmentUploadResponse"];
                 };
             };
-            /** @description El tamaño del archivo subido no coincide con el declarado. El archivo se descarta y la subida sigue en PENDING_SCAN: puede volver a subirse mientras uploadUrl esté vigente. */
+            /** @description El tamaño del archivo subido no coincide con el declarado. El archivo se descarta y la subida sigue en PENDING_SCAN: puede volver a subirse mientras la política de subida esté vigente. */
             400: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1087,54 +1207,55 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description La subida no existe para este tenant. */
             404: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description El archivo todavía no está en el almacén. */
+            /** @description El archivo todavía no está en el almacén, o la subida venció (pasa a FAILED con motivo EXPIRED y debe pedirse una nueva). */
             409: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description El almacén de archivos o el broker no están disponibles. */
+            500: components["responses"]["InternalError"];
+            /** @description El almacén de archivos o el broker no están disponibles. También lo devuelve el PEP (PEP_UNAVAILABLE) cuando no puede decidir el acceso. */
             503: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
+                    "X-Decision-Id": components["headers"]["DecisionId"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                    "application/problem+json": components["schemas"]["PepErrorResponse"];
                 };
             };
         };
     };
     getAttachmentUpload: {
         parameters: {
-            query?: never;
-            header?: {
-                /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
-                traceparent?: components["parameters"]["TraceParent"];
-            };
-            path: {
+            query: {
                 /** @description Identificador de la subida emitida por POST /attachment-uploads. */
                 uploadId: components["parameters"]["UploadId"];
             };
+            header?: {
+                /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
+                traceparent?: components["parameters"]["TraceParent"];
+            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -1143,25 +1264,35 @@ export interface operations {
             200: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["AttachmentUploadResponse"];
                 };
             };
-            401: components["responses"]["Unauthorized"];
-            /** @description La subida no existe para este tenant. */
-            404: {
+            /** @description El parámetro uploadId falta o está en blanco. */
+            400: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description La subida no existe para este tenant. */
+            404: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            503: components["responses"]["PepUnavailable"];
         };
     };
     listChannels: {
@@ -1170,7 +1301,7 @@ export interface operations {
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -1182,7 +1313,6 @@ export interface operations {
             200: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1190,34 +1320,8 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
-        };
-    };
-    listProviders: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
-                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
-                traceparent?: components["parameters"]["TraceParent"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Proveedores ordenados por providerId. */
-            200: {
-                headers: {
-                    "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProviderCatalogResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["PepUnavailable"];
         };
     };
     registerChannel: {
@@ -1226,7 +1330,7 @@ export interface operations {
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -1242,7 +1346,6 @@ export interface operations {
             200: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -1251,7 +1354,6 @@ export interface operations {
             400: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1260,6 +1362,36 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["PepUnavailable"];
+        };
+    };
+    listProviders: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
+                traceparent?: components["parameters"]["TraceParent"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Proveedores ordenados por providerId. */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderCatalogResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["PepUnavailable"];
         };
     };
     registerProvider: {
@@ -1268,7 +1400,7 @@ export interface operations {
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
             path?: never;
@@ -1284,7 +1416,6 @@ export interface operations {
             201: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1297,28 +1428,57 @@ export interface operations {
             404: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            503: components["responses"]["PepUnavailable"];
         };
     };
-    getRecipientPreferences: {
+    getConfiguration: {
         parameters: {
             query?: never;
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
-            path: {
-                /** @description Identificador del destinatario, estable entre canales. */
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Configuración en uso de la réplica y registro de parámetros. */
+            200: {
+                headers: {
+                    "X-Correlation-Id": components["headers"]["CorrelationId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigurationResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["PepUnavailable"];
+        };
+    };
+    getRecipientPreferences: {
+        parameters: {
+            query: {
+                /** @description Identificador del destinatario, estable entre canales. Se codifica como porcentaje en la query. */
                 recipientId: components["parameters"]["RecipientId"];
             };
+            header?: {
+                /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
+                "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
+                traceparent?: components["parameters"]["TraceParent"];
+            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -1327,7 +1487,6 @@ export interface operations {
             200: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1335,21 +1494,23 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["PepUnavailable"];
         };
     };
     updateRecipientPreferences: {
         parameters: {
-            query?: never;
+            query: {
+                /** @description Identificador del destinatario, estable entre canales. Se codifica como porcentaje en la query. */
+                recipientId: components["parameters"]["RecipientId"];
+            };
             header?: {
                 /** @description Identificador de correlación de la petición, de 1 a 64 caracteres (letras, dígitos, punto, guion y guion bajo). Si falta o es inválido, el servicio genera uno. Siempre se devuelve en el header de respuesta del mismo nombre y viaja hasta el despacho al proveedor. */
                 "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
-                /** @description Cabecera de contexto de traza W3C. Si cumple el formato se conserva y se reenvía en los logs y en la mensajería; si no cumple se descarta. El servicio no la genera ni la interpreta. */
+                /** @description Cabecera de contexto de traza W3C. Si cumple el formato, el servicio continúa esa traza en sus tramos, logs y mensajería; si no cumple se descarta y se inicia una traza nueva. El servicio no la devuelve en la respuesta. */
                 traceparent?: components["parameters"]["TraceParent"];
             };
-            path: {
-                /** @description Identificador del destinatario, estable entre canales. */
-                recipientId: components["parameters"]["RecipientId"];
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {
@@ -1362,7 +1523,6 @@ export interface operations {
             200: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1373,7 +1533,6 @@ export interface operations {
             400: {
                 headers: {
                     "X-Correlation-Id": components["headers"]["CorrelationId"];
-                    traceparent: components["headers"]["TraceParent"];
                     [name: string]: unknown;
                 };
                 content: {
@@ -1381,6 +1540,8 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            503: components["responses"]["PepUnavailable"];
         };
     };
 }

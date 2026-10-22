@@ -43,7 +43,13 @@ describe('prepareAttachments', () => {
         poll.mockReset();
         put = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
         vi.stubGlobal('fetch', put);
-        issue.mockResolvedValue(upload('PENDING_SCAN', { uploadUrl: 'https://minio.test/up-1' }));
+        issue.mockResolvedValue(
+            upload('PENDING_SCAN', {
+                uploadUrl: 'https://minio.test/bucket',
+                uploadFields: { key: 'k1', policy: 'p1', 'x-amz-signature': 's1' },
+                attachmentUrl: 'https://minio.test/bucket/k1',
+            }),
+        );
     });
 
     afterEach(() => {
@@ -74,11 +80,11 @@ describe('prepareAttachments', () => {
         const [over] = await prepareAttachments([bigFile('mas.pdf')]);
 
         expect(exact.content).toBeDefined();
-        expect(over.url).toBe('https://minio.test/up-1');
+        expect(over.url).toBe('https://minio.test/bucket/k1');
         expect(issue).toHaveBeenCalledTimes(1);
     });
 
-    it('sube al almacenamiento sin cabeceras del panel, completa y devuelve la url', async () => {
+    it('sube por formulario multipart con los campos firmados y el archivo al final, completa y devuelve la attachmentUrl', async () => {
         complete.mockResolvedValue(upload('CLEAN'));
 
         const [payload] = await prepareAttachments([bigFile()]);
@@ -89,16 +95,20 @@ describe('prepareAttachments', () => {
             sizeBytes: 1024 * 1024 + 1,
         });
         const [putUrl, putInit] = put.mock.calls[0] as [string, RequestInit];
-        expect(putUrl).toBe('https://minio.test/up-1');
-        expect(putInit.method).toBe('PUT');
-        expect(putInit.headers).toEqual({ 'Content-Type': 'application/pdf' });
-        expect(putInit.body).toBeInstanceOf(File);
+        expect(putUrl).toBe('https://minio.test/bucket');
+        expect(putInit.method).toBe('POST');
+        expect(putInit.headers).toBeUndefined();
+        const form = putInit.body as FormData;
+        expect(form).toBeInstanceOf(FormData);
+        expect([...form.keys()]).toEqual(['key', 'policy', 'x-amz-signature', 'file']);
+        expect(form.get('key')).toBe('k1');
+        expect(form.get('file')).toBeInstanceOf(File);
         expect(complete).toHaveBeenCalledWith('up-1');
         expect(payload).toEqual({
             fileName: 'grande.pdf',
             contentType: 'application/pdf',
             sizeBytes: 1024 * 1024 + 1,
-            url: 'https://minio.test/up-1',
+            url: 'https://minio.test/bucket/k1',
         });
         expect(payload.content).toBeUndefined();
     });
@@ -151,7 +161,7 @@ describe('prepareAttachments', () => {
         );
     });
 
-    it('falla si el servidor no devuelve la uploadUrl', async () => {
+    it('falla si el servidor no devuelve dónde subir ni los campos firmados', async () => {
         issue.mockResolvedValue(upload('PENDING_SCAN'));
 
         await expect(prepareAttachments([bigFile()])).rejects.toBeInstanceOf(AttachmentError);

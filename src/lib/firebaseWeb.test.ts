@@ -19,6 +19,7 @@ const config: FirebaseWebConfig = {
 const getToken = vi.fn();
 const isSupported = vi.fn();
 const register = vi.fn();
+const onMessage = vi.fn();
 
 vi.mock('firebase/app', () => ({
     getApps: () => [],
@@ -29,6 +30,7 @@ vi.mock('firebase/messaging', () => ({
     getMessaging: vi.fn(() => ({})),
     getToken: (...args: unknown[]): Promise<string> => getToken(...args) as Promise<string>,
     isSupported: (): Promise<boolean> => isSupported() as Promise<boolean>,
+    onMessage: (...args: unknown[]): void => onMessage(...args) as void,
 }));
 
 function stubBrowser(permission: NotificationPermission) {
@@ -73,6 +75,7 @@ describe('serviceWorkerUrl', () => {
 describe('requestBrowserPushToken', () => {
     beforeEach(() => {
         getToken.mockReset();
+        onMessage.mockReset();
         isSupported.mockReset().mockResolvedValue(true);
         register.mockReset().mockResolvedValue({ scope: '/' });
     });
@@ -89,6 +92,19 @@ describe('requestBrowserPushToken', () => {
             expect.anything(),
             expect.objectContaining({ vapidKey: 'vapid' }),
         );
+    });
+
+    it('muestra con el service worker el mensaje que llega con la página abierta', async () => {
+        const showNotification = vi.fn().mockResolvedValue(undefined);
+        register.mockResolvedValue({ scope: '/', showNotification });
+        stubBrowser('granted');
+        getToken.mockResolvedValue('device-token-1');
+
+        await requestBrowserPushToken(config);
+        const listener = onMessage.mock.calls[0]?.[1] as (payload: unknown) => void;
+        listener({ notification: { title: 'Hola', body: 'Cuerpo' } });
+
+        expect(showNotification).toHaveBeenCalledWith('Hola', { body: 'Cuerpo' });
     });
 
     it('falla con "denied" si el usuario rechaza el permiso', async () => {

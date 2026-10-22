@@ -68,7 +68,7 @@ function setup() {
 type User = ReturnType<typeof userEvent.setup>;
 
 async function chooseChannel(user: User, channel: string) {
-    await user.selectOptions(await screen.findByLabelText('Canal'), channel);
+    await user.click(await screen.findByRole('radio', { name: channel }));
 }
 
 describe('NuevaNotificacion (validaciones)', () => {

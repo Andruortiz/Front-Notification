@@ -1,7 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { getChannels, getProviders } from '../api/catalog';
 import CatalogStatusBadge from '../components/catalog/CatalogStatusBadge';
+import ChannelIcon from '../components/catalog/ChannelIcon';
 import { Link } from 'react-router-dom';
+
+const AVATAR_TONES = 5;
+
+function avatarTone(providerId: string): number {
+    return [...providerId].reduce((sum, char) => sum + char.charCodeAt(0), 0) % AVATAR_TONES;
+}
 
 export default function Catalogo() {
     const {
@@ -32,6 +39,10 @@ export default function Catalogo() {
         providersErrorData?.message ??
         'No fue posible consultar el catálogo.';
 
+    const providerTotal = providers?.items.length ?? 0;
+    const providersEnabled =
+        providers?.items.filter((provider) => provider.status === 'ENABLED').length ?? 0;
+
     return (
         <div>
             <div className="page-header">
@@ -49,63 +60,84 @@ export default function Catalogo() {
 
             {!isLoading && !isError && (
                 <>
+                    <dl className="cat-stats">
+                        <div className="cat-stat cat-stat--ok">
+                            <dt>Habilitados</dt>
+                            <dd>
+                                {providersEnabled}
+                                <span className="cat-stat__of"> de {providerTotal}</span>
+                            </dd>
+                        </div>
+                        <div className="cat-stat">
+                            <dt>Canales</dt>
+                            <dd>{channels?.items.length ?? 0}</dd>
+                        </div>
+                        <div className="cat-stat">
+                            <dt>Proveedores</dt>
+                            <dd>{providerTotal}</dd>
+                        </div>
+                    </dl>
+
                     <section className="catalog-section">
                         <div className="catalog-section-header">
                             <div>
                                 <h2>Canales</h2>
                                 <p>Proveedores disponibles para cada canal.</p>
                             </div>
-
-                            <span className="catalog-section-count">
-                                {channels?.items.length ?? 0}
-                            </span>
                         </div>
 
                         {channels?.items.length === 0 ? (
                             <div className="state-message">No hay canales registrados.</div>
                         ) : (
-                            <div className="catalog-channel-grid">
+                            <div className="cat-channel-grid">
                                 {channels?.items.map((channel) => (
                                     <Link
                                         key={channel.channelType}
                                         to={`/catalogo/${channel.channelType}`}
-                                        className="catalog-channel-card catalog-channel-card--link"
+                                        className="cat-channel"
                                     >
-                                        <div className="catalog-channel-header">
-                                            <h3>{channel.channelType}</h3>
-
-                                            <span className="cell-muted">
-                                                {channel.providers.length}{' '}
-                                                {channel.providers.length === 1
-                                                    ? 'proveedor'
-                                                    : 'proveedores'}
+                                        <div className="cat-channel__head">
+                                            <span className="cat-icon">
+                                                <ChannelIcon channelType={channel.channelType} />
+                                            </span>
+                                            <div className="cat-channel__title">
+                                                <h3>{channel.channelType}</h3>
+                                                <span className="cell-muted">
+                                                    {channel.providers.length}{' '}
+                                                    {channel.providers.length === 1
+                                                        ? 'proveedor'
+                                                        : 'proveedores'}
+                                                </span>
+                                            </div>
+                                            <span className="cat-channel__go" aria-hidden="true">
+                                                →
                                             </span>
                                         </div>
 
-                                        <div className="catalog-provider-list">
+                                        <ol className="cat-chain">
                                             {channel.providers.map((provider) => (
-                                                <div
+                                                <li
                                                     key={provider.providerId}
-                                                    className="catalog-provider-row"
+                                                    className={`cat-chain__step cat-chain__step--${provider.status.toLowerCase()}`}
                                                 >
-                                                    <div>
+                                                    <span className="cat-chain__order">
+                                                        {provider.preferenceOrder}
+                                                    </span>
+                                                    <div className="cat-chain__info">
                                                         <strong>{provider.providerId}</strong>
-
                                                         <span className="catalog-provider-preference">
                                                             Preferencia #{provider.preferenceOrder}
                                                         </span>
-
                                                         {provider.statusReason && (
                                                             <span className="catalog-status-reason">
                                                                 {provider.statusReason}
                                                             </span>
                                                         )}
                                                     </div>
-
                                                     <CatalogStatusBadge status={provider.status} />
-                                                </div>
+                                                </li>
                                             ))}
-                                        </div>
+                                        </ol>
                                     </Link>
                                 ))}
                             </div>
@@ -119,38 +151,43 @@ export default function Catalogo() {
                                 <p>Proveedores configurados en el sistema.</p>
                             </div>
 
-                            <span className="catalog-section-count">
-                                {providers?.items.length ?? 0}
-                            </span>
+                            <span className="catalog-section-count">{providerTotal}</span>
                         </div>
 
                         {providers?.items.length === 0 ? (
                             <div className="state-message">No hay proveedores registrados.</div>
                         ) : (
-                            <div className="catalog-provider-grid">
+                            <div className="cat-provider-grid">
                                 {providers?.items.map((provider) => (
-                                    <article
-                                        key={provider.providerId}
-                                        className="catalog-provider-card"
-                                    >
-                                        <div>
-                                            <h3>{provider.providerId}</h3>
-
-                                            <CatalogStatusBadge status={provider.status} />
-
-                                            {provider.statusReason && (
-                                                <span className="catalog-status-reason">
-                                                    {provider.statusReason}
-                                                </span>
-                                            )}
+                                    <article key={provider.providerId} className="cat-provider">
+                                        <div className="cat-provider__head">
+                                            <span
+                                                className={`cat-avatar cat-avatar--${avatarTone(provider.providerId)}`}
+                                                aria-hidden="true"
+                                            >
+                                                {provider.providerId.charAt(0).toUpperCase()}
+                                            </span>
+                                            <div>
+                                                <h3>{provider.providerId}</h3>
+                                                <CatalogStatusBadge status={provider.status} />
+                                            </div>
                                         </div>
 
-                                        <div className="catalog-provider-channels">
+                                        {provider.statusReason && (
+                                            <span className="catalog-status-reason">
+                                                {provider.statusReason}
+                                            </span>
+                                        )}
+
+                                        <div className="cat-provider__channels">
                                             {provider.channels.map((channel) => (
                                                 <span
                                                     key={channel.channelType}
-                                                    className="catalog-channel-tag"
+                                                    className="cat-chip"
                                                 >
+                                                    <ChannelIcon
+                                                        channelType={channel.channelType}
+                                                    />
                                                     {channel.channelType}
                                                 </span>
                                             ))}

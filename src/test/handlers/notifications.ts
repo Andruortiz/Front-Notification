@@ -30,6 +30,7 @@ export const notificationStatusResponse = (
     channelType: 'EMAIL',
     providerId: null,
     lastUpdatedAt: '2026-09-25T10:00:00Z',
+    correlationId: null,
     ...overrides,
 });
 
@@ -54,6 +55,7 @@ export const batchAcceptedResponse = (
     overrides: Partial<BatchAcceptedResponse> = {},
 ): BatchAcceptedResponse => ({
     batchId: 'batch-1',
+    trackingSaved: true,
     results: [],
     ...overrides,
 });
@@ -91,12 +93,7 @@ export const handlers = [
         return HttpResponse.json(response);
     }),
 
-    http.get('*/notifications/:id', ({ params }) => {
-        const response = notificationStatusResponse({ notificationId: String(params.id) });
-        return HttpResponse.json(response);
-    }),
-
-    http.get('*/notifications:subscribe', () => {
+    http.get('*/notifications/stream', () => {
         const stream = new ReadableStream<Uint8Array>({
             start(controller) {
                 currentSseController = controller;
@@ -111,19 +108,26 @@ export const handlers = [
         });
     }),
 
+    http.get('*/notifications/detail', ({ request }) => {
+        const response = notificationStatusResponse({
+            notificationId: String(new URL(request.url).searchParams.get('notificationId')),
+        });
+        return HttpResponse.json(response);
+    }),
+
     http.post('*/notifications', () => {
         return HttpResponse.json(sendNotificationResponse(), { status: 202 });
     }),
 
-    http.post('*/notifications:sendBatch', () => {
+    http.post('*/notifications/batches', () => {
         return HttpResponse.json(batchAcceptedResponse(), { status: 202 });
     }),
 
-    http.post(/\/notifications\/([^/]+):retry$/, ({ request }) => {
-        const match = /\/notifications\/([^/]+):retry$/.exec(new URL(request.url).pathname);
-        const id = match ? decodeURIComponent(match[1]) : 'unknown';
-        return HttpResponse.json(notificationStatusResponse({ notificationId: id }), {
-            status: 202,
-        });
+    http.post('*/notification-retries', async ({ request }) => {
+        const body = (await request.json()) as { notificationId?: string };
+        return HttpResponse.json(
+            notificationStatusResponse({ notificationId: body.notificationId ?? 'unknown' }),
+            { status: 202 },
+        );
     }),
 ];

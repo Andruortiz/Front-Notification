@@ -179,6 +179,51 @@ describe('validateSendDraft (PUSH)', () => {
     });
 });
 
+describe('validateSendDraft (WHATSAPP)', () => {
+    const whatsapp = channel(
+        'WHATSAPP',
+        '{"type":"object","properties":{"body":{"type":"string","maxLength":1600},"providerTemplate":{"type":"object","required":["templateId"]}}}',
+    );
+    const SID = 'HXfe5ab5f00277942d4d4200328b4d403c';
+    const whatsappDraft = (overrides: Partial<SendDraft> = {}) =>
+        draft({ channelType: 'WHATSAPP', address: '+573137188896', subject: '', ...overrides });
+
+    it('declara que el canal admite plantilla y usa teléfono internacional', () => {
+        expect(whatsapp.providerTemplate).toBe(true);
+        expect(
+            validateSendDraft(whatsappDraft({ address: '3137188896' }), whatsapp).address,
+        ).toBeTruthy();
+    });
+
+    it('acepta texto libre con cuerpo', () => {
+        expect(validateSendDraft(whatsappDraft(), whatsapp)).toEqual({});
+    });
+
+    it('acepta una plantilla válida sin cuerpo', () => {
+        expect(validateSendDraft(whatsappDraft({ body: '', templateId: SID }), whatsapp)).toEqual(
+            {},
+        );
+    });
+
+    it('rechaza una plantilla con SID inválido o variables mal formadas', () => {
+        expect(
+            validateSendDraft(whatsappDraft({ body: '', templateId: 'HX1' }), whatsapp).template,
+        ).toMatch(/Content SID/);
+        expect(
+            validateSendDraft(
+                whatsappDraft({ body: '', templateId: SID, templateVariables: 'sin separador' }),
+                whatsapp,
+            ).template,
+        ).toMatch(/formato/);
+    });
+
+    it('rechaza la plantilla en un canal que no la declara', () => {
+        expect(validateSendDraft(draft({ templateId: SID }), email).template).toMatch(
+            /no admite plantillas/,
+        );
+    });
+});
+
 describe('validateBatchDraft', () => {
     it('aplica las mismas reglas de contenido que el envío individual', () => {
         expect(validateBatchDraft({ channelType: 'EMAIL', subject: '', body: 'x' }, email)).toEqual(

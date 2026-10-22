@@ -64,7 +64,7 @@ function renderPage() {
 type User = ReturnType<typeof userEvent.setup>;
 
 async function fillIndividual(user: User) {
-    await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+    await user.click(await screen.findByRole('radio', { name: 'EMAIL' }));
     await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
     await typeSubject(user);
     await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
@@ -91,7 +91,7 @@ interface UploadStep {
 
 function uploadHandlers(id: string, steps: UploadStep[], calls: string[] = []) {
     let polls = 0;
-    const uploadUrl = `https://minio.test/bucket/${id}`;
+    const attachmentUrl = `https://minio.test/bucket/${id}`;
     return [
         http.post('*/attachment-uploads', async ({ request }) => {
             calls.push('issue');
@@ -103,20 +103,22 @@ function uploadHandlers(id: string, steps: UploadStep[], calls: string[] = []) {
                     fileName: 'grande.pdf',
                     contentType: body.contentType,
                     sizeBytes: body.sizeBytes,
-                    uploadUrl,
+                    uploadUrl: 'https://minio.test/bucket',
+                    uploadFields: { key: id, policy: 'p', 'x-amz-signature': 's' },
+                    attachmentUrl,
                     expiresAt: '2026-10-01T12:00:00Z',
                 },
                 { status: 201 },
             );
         }),
-        http.post(new RegExp(`/attachment-uploads/${id}:complete$`), () => {
+        http.post('*/attachment-upload-completions', () => {
             calls.push('complete');
             return HttpResponse.json(
                 { uploadId: id, state: 'PENDING_SCAN', fileName: 'grande.pdf' },
                 { status: 202 },
             );
         }),
-        http.get(`*/attachment-uploads/${id}`, () => {
+        http.get('*/attachment-uploads/status', () => {
             calls.push('poll');
             const next = steps[Math.min(polls, steps.length - 1)];
             polls += 1;
@@ -156,10 +158,9 @@ describe('NuevaNotificacion (adjuntos)', () => {
         server.use(http.get('*/channels', () => HttpResponse.json(catalog)));
         const realFetch = globalThis.fetch;
         vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
-            if (
-                init?.method === 'PUT' &&
-                new Request(input).url.startsWith('https://minio.test/')
-            ) {
+            const target =
+                typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+            if (init?.method === 'POST' && target.startsWith('https://minio.test/')) {
                 storagePuts += 1;
                 return Promise.resolve(new Response(null, { status: putStatus }));
             }
@@ -208,7 +209,7 @@ describe('NuevaNotificacion (adjuntos)', () => {
         ]);
     });
 
-    it('más de 1 MB lo sube, espera el veredicto CLEAN y referencia la uploadUrl en url', async () => {
+    it('más de 1 MB lo sube, espera el veredicto CLEAN y referencia la attachmentUrl en url', async () => {
         const calls: string[] = [];
         const sent: SentNotification[] = [];
         server.use(
@@ -260,7 +261,7 @@ describe('NuevaNotificacion (adjuntos)', () => {
         },
     );
 
-    it('si falla el PUT al almacenamiento, avisa y no envía la notificación', async () => {
+    it('si falla la subida al almacenamiento, avisa y no envía la notificación', async () => {
         const sent: SentNotification[] = [];
         server.use(...uploadHandlers('up-3', [{ state: 'CLEAN' }]), acceptNotifications(sent));
         putStatus = 403;
@@ -410,7 +411,7 @@ describe('NuevaNotificacion (adjuntos)', () => {
     it('en un canal que no declara adjuntos no muestra la opción de adjuntar', async () => {
         renderPage();
         const user = userEvent.setup();
-        await user.selectOptions(await screen.findByLabelText('Canal'), 'SMS');
+        await user.click(await screen.findByRole('radio', { name: 'SMS' }));
 
         expect(await screen.findByLabelText('Número de teléfono')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Adjuntar archivos' })).not.toBeInTheDocument();
@@ -425,7 +426,7 @@ describe('NuevaNotificacion (adjuntos)', () => {
         const user = userEvent.setup();
         await fillIndividual(user);
         await attachViaDialog(user, pdf());
-        await user.selectOptions(screen.getByLabelText('Canal'), 'SMS');
+        await user.click(await screen.findByRole('radio', { name: 'SMS' }));
         await user.clear(screen.getByLabelText('Número de teléfono'));
         await user.type(screen.getByLabelText('Número de teléfono'), '+573001234567');
         await user.click(screen.getByRole('button', { name: 'Enviar' }));
@@ -444,7 +445,7 @@ describe('NuevaNotificacion (adjuntos)', () => {
 
         renderPage();
         const user = userEvent.setup();
-        await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+        await user.click(await screen.findByRole('radio', { name: 'EMAIL' }));
         await user.type(
             screen.getByLabelText('Correo electrónico'),
             'alice@example.com, bob@example.com',

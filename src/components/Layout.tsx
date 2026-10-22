@@ -1,13 +1,16 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import { logout, sessionModeUrl } from '../security/session';
 
 const NAV_LINKS = [
     { to: '/', label: 'Notificaciones' },
     { to: '/notificaciones/nueva', label: 'Nueva notificación' },
     { to: '/catalogo', label: 'Catálogo' },
+    { to: '/seguridad', label: 'Seguridad' },
 ];
 
 export default function Layout() {
     const location = useLocation();
+    const pdpUrl = sessionModeUrl();
 
     return (
         <div className="app-shell">
@@ -27,6 +30,15 @@ export default function Layout() {
                         {link.label}
                     </Link>
                 ))}
+                {pdpUrl && (
+                    <button
+                        type="button"
+                        className="app-nav__link app-nav__logout"
+                        onClick={() => logout(pdpUrl)}
+                    >
+                        Cerrar sesión
+                    </button>
+                )}
             </nav>
             <main className="app-main">
                 <div className="content">

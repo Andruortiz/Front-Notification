@@ -22,6 +22,8 @@ interface NotificationFieldsProps {
     addressRef?: (element: HTMLTextAreaElement | null) => void;
     bodyRef?: (element: HTMLTextAreaElement | null) => void;
     addressExtra?: ReactNode;
+    hideBody?: boolean;
+    templateSlot?: ReactNode;
 }
 
 export default function NotificationFields({
@@ -40,6 +42,8 @@ export default function NotificationFields({
     addressRef,
     bodyRef,
     addressExtra,
+    hideBody,
+    templateSlot,
 }: NotificationFieldsProps) {
     return (
         <>
@@ -106,32 +110,36 @@ export default function NotificationFields({
                 </div>
             )}
 
-            <div className="form-field">
-                <label htmlFor="send-body">Mensaje</label>
-                <textarea
-                    id="send-body"
-                    ref={bodyRef}
-                    value={body}
-                    rows={4}
-                    onChange={(event) => onBodyChange(event.target.value)}
-                    onBlur={() => onFieldBlur?.('body')}
-                    aria-required="true"
-                    aria-invalid={errors.body ? true : undefined}
-                    aria-describedby={
-                        [errors.body ? 'send-body-error' : null, 'send-body-counter']
-                            .filter(Boolean)
-                            .join(' ') || undefined
-                    }
-                />
-                <p id="send-body-counter" className="field-counter" aria-live="polite">
-                    {body.length} / {(rules.bodyMax ?? MAX_CONTENT_LENGTH).toLocaleString('es-CO')}
-                </p>
-                {errors.body && (
-                    <p id="send-body-error" className="field-error">
-                        {errors.body}
+            {!hideBody && (
+                <div className="form-field">
+                    <label htmlFor="send-body">Mensaje</label>
+                    <textarea
+                        id="send-body"
+                        ref={bodyRef}
+                        value={body}
+                        rows={4}
+                        onChange={(event) => onBodyChange(event.target.value)}
+                        onBlur={() => onFieldBlur?.('body')}
+                        aria-required="true"
+                        aria-invalid={errors.body ? true : undefined}
+                        aria-describedby={
+                            [errors.body ? 'send-body-error' : null, 'send-body-counter']
+                                .filter(Boolean)
+                                .join(' ') || undefined
+                        }
+                    />
+                    <p id="send-body-counter" className="field-counter" aria-live="polite">
+                        {body.length} /{' '}
+                        {(rules.bodyMax ?? MAX_CONTENT_LENGTH).toLocaleString('es-CO')}
                     </p>
-                )}
-            </div>
+                    {errors.body && (
+                        <p id="send-body-error" className="field-error">
+                            {errors.body}
+                        </p>
+                    )}
+                </div>
+            )}
+            {templateSlot}
 
             <div className="form-field">
                 <label htmlFor="send-priority">Prioridad</label>
