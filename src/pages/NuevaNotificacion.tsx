@@ -4,6 +4,7 @@ import { getChannels } from '../api/catalog';
 import { deriveChannelRules } from '../lib/channelRules';
 import { parseRecipients, MAX_RECIPIENTS } from '../lib/recipients';
 import { attachmentsFingerprint } from '../lib/attachment';
+import { parseTemplateVariables } from '../lib/providerTemplate';
 import {
     validateSendDraft,
     validateBatchDraft,
@@ -16,6 +17,8 @@ import { useSendNotification, translateSendError } from '../hooks/useSendNotific
 import { useSendBatch, type BatchSendRow, type SendOutcome } from '../hooks/useSendBatch';
 import AttachmentField from '../components/send/AttachmentField';
 import ChannelSelect from '../components/send/ChannelSelect';
+import ChannelSummary from '../components/send/ChannelSummary';
+import ProviderTemplateField from '../components/send/ProviderTemplateField';
 import PushTokenButton from '../components/send/PushTokenButton';
 import NotificationFields from '../components/send/NotificationFields';
 import SendResultPanel from '../components/send/SendResultPanel';
@@ -27,7 +30,7 @@ import type { RecipientEntry } from '../lib/recipients';
 type Priority = components['schemas']['Priority'];
 type SendNotificationResponse = components['schemas']['SendNotificationResponse'];
 type FormErrors = Partial<
-    Record<'channelType' | 'address' | 'subject' | 'body' | 'attachment', string>
+    Record<'channelType' | 'address' | 'subject' | 'body' | 'template' | 'attachment', string>
 >;
 
 const EMPTY_DRAFT_FIELDS = { address: '', subject: '', body: '', priority: 'NORMAL' as Priority };
@@ -37,6 +40,8 @@ export default function NuevaNotificacion() {
     const [address, setAddress] = useState('');
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
+    const [templateId, setTemplateId] = useState('');
+    const [templateVariables, setTemplateVariables] = useState('');
     const [priority, setPriority] = useState<Priority>('NORMAL');
     const [attachments, setAttachments] = useState<File[]>([]);
     const [errors, setErrors] = useState<FormErrors>({});
@@ -48,10 +53,11 @@ export default function NuevaNotificacion() {
     const [batchExternalIds, setBatchExternalIds] = useState<string[] | null>(null);
     const [batchOutcomes, setBatchOutcomes] = useState<SendOutcome[] | null>(null);
 
-    const channelFieldRef = useRef<HTMLSelectElement | null>(null);
+    const channelFieldRef = useRef<HTMLElement | null>(null);
     const addressFieldRef = useRef<HTMLTextAreaElement | null>(null);
     const subjectFieldRef = useRef<HTMLInputElement | null>(null);
     const bodyFieldRef = useRef<HTMLTextAreaElement | null>(null);
+    const templateFieldRef = useRef<HTMLInputElement | null>(null);
 
     const { data: channelsData } = useQuery({
         queryKey: ['catalog', 'channels'],
@@ -84,7 +90,13 @@ export default function NuevaNotificacion() {
         let result: FormErrors;
         if (parsed.entries.length > 1 || parsed.exceedsMax) {
             result = validateBatchDraft(
-                { channelType, subject: values.subject, body: values.body },
+                {
+                    channelType,
+                    subject: values.subject,
+                    body: values.body,
+                    templateId,
+                    templateVariables,
+                },
                 rules,
             );
             if (parsed.exceedsMax) {
@@ -102,6 +114,8 @@ export default function NuevaNotificacion() {
                 subject: values.subject,
                 body: values.body,
                 priority,
+                templateId,
+                templateVariables,
             };
             result = validateSendDraft(draft, rules);
         }
@@ -132,9 +146,29 @@ export default function NuevaNotificacion() {
             addressFieldRef.current?.focus();
         } else if (fieldErrors.subject) {
             subjectFieldRef.current?.focus();
+        } else if (fieldErrors.template) {
+            templateFieldRef.current?.focus();
         } else if (fieldErrors.body) {
             bodyFieldRef.current?.focus();
         }
+    }
+
+    const usingTemplate = Boolean(rules?.providerTemplate) && templateId.trim().length > 0;
+
+    function messageContent() {
+        if (!usingTemplate) {
+            return { body };
+        }
+        return {
+            providerTemplate: {
+                templateId: templateId.trim(),
+                variables: parseTemplateVariables(templateVariables).variables,
+            },
+        };
+    }
+
+    function contentFingerprint(): string {
+        return usingTemplate ? `template:${templateId.trim()}:${templateVariables}` : body;
     }
 
     function submitIndividual() {
@@ -150,7 +184,7 @@ export default function NuevaNotificacion() {
             channelType,
             recipients: [normalizedAddress],
             subject,
-            body,
+            body: contentFingerprint(),
             priority,
             attachment: attachmentsFingerprint(attachments),
         });
@@ -165,7 +199,7 @@ export default function NuevaNotificacion() {
                     recipientAddress: normalizedAddress,
                     subject:
                         rules?.subject === 'hidden' || !subject.trim() ? undefined : subject.trim(),
-                    body,
+                    ...messageContent(),
                     priority,
                 },
                 attachments,
@@ -198,7 +232,7 @@ export default function NuevaNotificacion() {
             channelType,
             recipients: parsedRecipients.entries.map((entry) => entry.address),
             subject,
-            body,
+            body: contentFingerprint(),
             priority,
             attachment: attachmentsFingerprint(attachments),
         });
@@ -219,7 +253,7 @@ export default function NuevaNotificacion() {
         const outcomes = await batchSend(rows, {
             channelType,
             subject: rules?.subject === 'hidden' || !subject.trim() ? undefined : subject.trim(),
-            body,
+            ...messageContent(),
             priority,
             attachments,
         });
@@ -252,7 +286,7 @@ export default function NuevaNotificacion() {
         const resultsSubset = await batchSend(rows, {
             channelType,
             subject: rules?.subject === 'hidden' || !subject.trim() ? undefined : subject.trim(),
-            body,
+            ...messageContent(),
             priority,
             attachments,
         });
@@ -278,6 +312,8 @@ export default function NuevaNotificacion() {
         setAddress(EMPTY_DRAFT_FIELDS.address);
         setSubject(EMPTY_DRAFT_FIELDS.subject);
         setBody(EMPTY_DRAFT_FIELDS.body);
+        setTemplateId('');
+        setTemplateVariables('');
         setPriority(EMPTY_DRAFT_FIELDS.priority);
         setErrors({});
         mutation.reset();
@@ -395,108 +431,165 @@ export default function NuevaNotificacion() {
                 </p>
             </div>
 
-            <form className="card" onSubmit={handleFormSubmit} noValidate>
-                {hasErrors && (
-                    <div role="alert" className="state-message state-message--error form-alert">
-                        Corregí los campos señalados antes de enviar.
+            <div className="send-layout">
+                <form className="card send-card" onSubmit={handleFormSubmit} noValidate>
+                    <div className="send-card__header">
+                        <div>
+                            <p className="send-card__title">Detalles del envío</p>
+                            <p className="send-card__hint">
+                                Elegí el canal y completá el contenido del mensaje.
+                            </p>
+                        </div>
                     </div>
-                )}
-
-                {mutation.isError && (
-                    <div role="alert" className="state-message state-message--error form-alert">
-                        {translateSendError(mutation.error)}
-                    </div>
-                )}
-
-                <ChannelSelect
-                    value={channelType}
-                    onChange={(value) => {
-                        setChannelType(value);
-                        setErrors((prev) => ({
-                            ...prev,
-                            channelType: undefined,
-                            attachment: undefined,
-                        }));
-                        const nextChannel = channelsData?.items.find(
-                            (item) => item.channelType === value,
-                        );
-                        if (!nextChannel || !deriveChannelRules(nextChannel).attachments) {
-                            setAttachments([]);
-                        }
-                    }}
-                    error={errors.channelType}
-                    selectRef={(el) => {
-                        channelFieldRef.current = el;
-                    }}
-                />
-
-                {rules && (
-                    <>
-                        <NotificationFields
-                            rules={rules}
-                            address={address}
-                            subject={subject}
-                            body={body}
-                            priority={priority}
-                            errors={errors}
-                            onAddressChange={(value) => {
-                                setAddress(value);
-                                revalidateField('address', { address: value });
-                            }}
-                            onSubjectChange={(value) => {
-                                setSubject(value);
-                                revalidateField('subject', { subject: value });
-                                revalidateField('body', { subject: value });
-                            }}
-                            onBodyChange={(value) => {
-                                setBody(value);
-                                revalidateField('body', { body: value });
-                            }}
-                            onFieldBlur={validateFieldOnBlur}
-                            onPriorityChange={setPriority}
-                            addressRef={(el) => {
-                                addressFieldRef.current = el;
-                            }}
-                            subjectRef={(el) => {
-                                subjectFieldRef.current = el;
-                            }}
-                            bodyRef={(el) => {
-                                bodyFieldRef.current = el;
-                            }}
-                            addressExtra={recipientsExtra}
-                        />
-                        {channelType === 'PUSH' && (
-                            <PushTokenButton
-                                disabled={mutation.isPending || batchIsSending}
-                                onToken={(token) => {
-                                    setAddress(token);
-                                    revalidateField('address', { address: token });
-                                }}
-                            />
+                    <div className="send-card__body">
+                        {hasErrors && (
+                            <div
+                                role="alert"
+                                className="state-message state-message--error form-alert"
+                            >
+                                Corregí los campos señalados antes de enviar.
+                            </div>
                         )}
-                        <AttachmentField
-                            files={attachments}
-                            rules={rules?.attachments ?? null}
-                            error={errors.attachment}
-                            disabled={mutation.isPending || batchIsSending}
-                            onChange={(files) => {
-                                setAttachments(files);
-                                setErrors((prev) => ({ ...prev, attachment: undefined }));
+
+                        {mutation.isError && (
+                            <div
+                                role="alert"
+                                className="state-message state-message--error form-alert"
+                            >
+                                {translateSendError(mutation.error)}
+                            </div>
+                        )}
+
+                        <ChannelSelect
+                            value={channelType}
+                            onChange={(value) => {
+                                setChannelType(value);
+                                setErrors((prev) => ({
+                                    ...prev,
+                                    channelType: undefined,
+                                    attachment: undefined,
+                                }));
+                                const nextChannel = channelsData?.items.find(
+                                    (item) => item.channelType === value,
+                                );
+                                if (!nextChannel || !deriveChannelRules(nextChannel).attachments) {
+                                    setAttachments([]);
+                                }
+                                if (
+                                    !nextChannel ||
+                                    !deriveChannelRules(nextChannel).providerTemplate
+                                ) {
+                                    setTemplateId('');
+                                    setTemplateVariables('');
+                                }
+                            }}
+                            error={errors.channelType}
+                            fieldRef={(el) => {
+                                channelFieldRef.current = el;
                             }}
                         />
-                    </>
-                )}
 
-                <div className="form-actions">
-                    <button
-                        type="submit"
-                        className="button"
-                        disabled={mutation.isPending || !rules}
-                    >
-                        {mutation.isPending ? 'Enviando...' : 'Enviar'}
-                    </button>
-                </div>
-            </form>
+                        {rules && (
+                            <>
+                                <NotificationFields
+                                    rules={rules}
+                                    address={address}
+                                    subject={subject}
+                                    body={body}
+                                    priority={priority}
+                                    errors={errors}
+                                    onAddressChange={(value) => {
+                                        setAddress(value);
+                                        revalidateField('address', { address: value });
+                                    }}
+                                    onSubjectChange={(value) => {
+                                        setSubject(value);
+                                        revalidateField('subject', { subject: value });
+                                        revalidateField('body', { subject: value });
+                                    }}
+                                    onBodyChange={(value) => {
+                                        setBody(value);
+                                        revalidateField('body', { body: value });
+                                    }}
+                                    onFieldBlur={validateFieldOnBlur}
+                                    onPriorityChange={setPriority}
+                                    addressRef={(el) => {
+                                        addressFieldRef.current = el;
+                                    }}
+                                    subjectRef={(el) => {
+                                        subjectFieldRef.current = el;
+                                    }}
+                                    bodyRef={(el) => {
+                                        bodyFieldRef.current = el;
+                                    }}
+                                    addressExtra={recipientsExtra}
+                                    hideBody={usingTemplate}
+                                    templateSlot={
+                                        rules.providerTemplate ? (
+                                            <ProviderTemplateField
+                                                templateId={templateId}
+                                                variables={templateVariables}
+                                                error={errors.template}
+                                                disabled={mutation.isPending || batchIsSending}
+                                                onTemplateIdChange={(value) => {
+                                                    setTemplateId(value);
+                                                    setErrors((prev) => ({
+                                                        ...prev,
+                                                        template: undefined,
+                                                        body: undefined,
+                                                    }));
+                                                }}
+                                                onVariablesChange={(value) => {
+                                                    setTemplateVariables(value);
+                                                    setErrors((prev) => ({
+                                                        ...prev,
+                                                        template: undefined,
+                                                    }));
+                                                }}
+                                                templateRef={(el) => {
+                                                    templateFieldRef.current = el;
+                                                }}
+                                            />
+                                        ) : null
+                                    }
+                                />
+                                {channelType === 'PUSH' && (
+                                    <PushTokenButton
+                                        disabled={mutation.isPending || batchIsSending}
+                                        onToken={(token) => {
+                                            setAddress(token);
+                                            revalidateField('address', { address: token });
+                                        }}
+                                    />
+                                )}
+                                <AttachmentField
+                                    files={attachments}
+                                    rules={rules?.attachments ?? null}
+                                    error={errors.attachment}
+                                    disabled={mutation.isPending || batchIsSending}
+                                    onChange={(files) => {
+                                        setAttachments(files);
+                                        setErrors((prev) => ({ ...prev, attachment: undefined }));
+                                    }}
+                                />
+                            </>
+                        )}
+
+                        <div className="form-actions">
+                            <button
+                                type="submit"
+                                className="button"
+                                disabled={mutation.isPending || !rules}
+                            >
+                                {mutation.isPending ? 'Enviando...' : 'Enviar'}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                <ChannelSummary
+                    channel={channelsData?.items.find((item) => item.channelType === channelType)}
+                />
+            </div>
 
             <ConfirmSendDialog
                 open={confirmOpen}
@@ -504,7 +597,7 @@ export default function NuevaNotificacion() {
                 recipientCount={
                     parsedRecipients.entries.filter((e) => e.duplicateOf === null).length
                 }
-                message={body}
+                message={usingTemplate ? `Plantilla ${templateId.trim()}` : body}
                 onConfirm={() => {
                     void handleConfirmSend();
                 }}

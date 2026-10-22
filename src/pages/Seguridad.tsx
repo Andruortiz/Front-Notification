@@ -27,7 +27,7 @@ export default function Seguridad() {
     }, []);
 
     return (
-        <section>
+        <section className="security-page">
             <h1>Administración de seguridad</h1>
             {error && <p role="alert">{error}</p>}
             <div id="security-ui" ref={containerRef} />

@@ -5,19 +5,29 @@ import type { components } from '../api/schema';
 import StatusBadge from '../components/StatusBadge';
 import LiveConnectionBadge from '../components/LiveConnectionBadge';
 import Pagination from '../components/Pagination';
+import ChannelIcon from '../components/catalog/ChannelIcon';
+import NotificationDetail from '../components/detail/NotificationDetail';
 import { NOTIFICATIONS_KEY, useNotificationsLiveFeed } from '../hooks/useNotificationsLiveFeed';
+import { useNow } from '../hooks/useNow';
+import { formatAgo } from '../lib/notificationTimeline';
 import { pageToOffset, parsePageParams } from '../lib/pagination';
 
 type NotificationSearchResponse = components['schemas']['NotificationSearchResponse'];
 
+const SELECTED_PARAM = 'sel';
+
 function formatDate(value?: string) {
-    return value ? new Date(value).toLocaleString() : 'sin datos';
+    return value
+        ? new Date(value).toLocaleString('es', { dateStyle: 'medium', timeStyle: 'short' })
+        : 'sin datos';
 }
 
 export default function Listado() {
     const [searchParams, setSearchParams] = useSearchParams();
     const { page, size } = parsePageParams(searchParams);
     const offset = pageToOffset({ page, size });
+    const selectedId = searchParams.get(SELECTED_PARAM) ?? undefined;
+    const now = useNow(30_000);
     const { data, isLoading, isError, error, isPlaceholderData } = useQuery({
         queryKey: [...NOTIFICATIONS_KEY, { limit: size, offset }],
         queryFn: () =>
@@ -29,7 +39,17 @@ export default function Listado() {
     });
     const goToPage = (nextPage: number, nextSize = size) =>
         setSearchParams({ page: String(nextPage), size: String(nextSize) });
+    const select = (id: string | undefined) => {
+        const next = new URLSearchParams(searchParams);
+        if (id) {
+            next.set(SELECTED_PARAM, id);
+        } else {
+            next.delete(SELECTED_PARAM);
+        }
+        setSearchParams(next);
+    };
     const connectionState = useNotificationsLiveFeed();
+    const selectedItem = data?.items.find((n) => n.notificationId === selectedId);
 
     return (
         <div>
@@ -74,47 +94,130 @@ export default function Listado() {
                 )}
 
             {!isLoading && !isError && data && data.items.length > 0 && (
-                <div className="table-frame table-scroll">
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>Destinatario</th>
-                                <th>Canal</th>
-                                <th>Estado</th>
-                                <th>Proveedor</th>
-                                <th>Aceptada</th>
-                                <th>Intentos</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.items.map((n) => (
-                                <tr key={n.notificationId}>
-                                    <td className="cell-strong">{n.recipientId}</td>
-                                    <td className="cell-muted">{n.channelType}</td>
-                                    <td>
-                                        <StatusBadge status={n.status} />
-                                    </td>
-                                    <td className="cell-muted">
-                                        {n.deliveryAttempts?.at(-1)?.providerId ??
-                                            'sin intento todavía'}
-                                    </td>
-                                    <td className="cell-muted">{formatDate(n.acceptedAt)}</td>
-                                    <td className="cell-muted">
-                                        {n.deliveryAttempts?.length ?? 0}
-                                    </td>
-                                    <td>
-                                        <Link
-                                            className="link-button"
-                                            to={`/notificaciones/${n.notificationId}`}
-                                        >
-                                            Ver detalle
-                                        </Link>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className={selectedId ? 'list-split list-split--open' : 'list-split'}>
+                    <div className="list-split__main">
+                        <div className="table-frame table-scroll">
+                            <table className="data-table notif-table">
+                                <thead>
+                                    <tr>
+                                        <th>Destinatario</th>
+                                        <th>Canal</th>
+                                        <th>Estado</th>
+                                        <th className="col-secondary">Proveedor</th>
+                                        <th>Aceptada</th>
+                                        <th className="col-secondary">Intentos</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.items.map((n) => {
+                                        const provider = n.deliveryAttempts?.at(-1)?.providerId;
+                                        const accepted = n.acceptedAt
+                                            ? Date.parse(n.acceptedAt)
+                                            : undefined;
+                                        const isSelected = n.notificationId === selectedId;
+                                        return (
+                                            <tr
+                                                key={n.notificationId}
+                                                className={isSelected ? 'is-selected' : undefined}
+                                                aria-current={isSelected ? 'true' : undefined}
+                                                onClick={() => select(n.notificationId)}
+                                            >
+                                                <td className="cell-strong">
+                                                    <span
+                                                        className="cell-recipient"
+                                                        title={n.recipientId}
+                                                    >
+                                                        {n.recipientId}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span className="channel-pill">
+                                                        <ChannelIcon channelType={n.channelType} />
+                                                        {n.channelType}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <StatusBadge status={n.status} />
+                                                </td>
+                                                <td className="cell-muted col-secondary">
+                                                    {provider ? (
+                                                        <span className="provider-tag">
+                                                            {provider}
+                                                        </span>
+                                                    ) : (
+                                                        'sin intento todavía'
+                                                    )}
+                                                </td>
+                                                <td className="cell-muted cell-when">
+                                                    <span title={formatDate(n.acceptedAt)}>
+                                                        {accepted === undefined
+                                                            ? 'sin datos'
+                                                            : formatAgo(now - accepted)}
+                                                    </span>
+                                                    <small>{formatDate(n.acceptedAt)}</small>
+                                                </td>
+                                                <td className="cell-muted col-secondary">
+                                                    <span className="count-pill">
+                                                        {n.deliveryAttempts?.length ?? 0}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <button
+                                                        type="button"
+                                                        className="link-button"
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            select(n.notificationId);
+                                                        }}
+                                                    >
+                                                        Ver detalle
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {selectedId && (
+                        <aside className="detail-dock" aria-label="Detalle de la notificación">
+                            <header className="detail-dock__head">
+                                <h2>Detalle</h2>
+                                <Link
+                                    className="link-button"
+                                    to={`/notificaciones/${encodeURIComponent(selectedId)}`}
+                                >
+                                    Abrir en página
+                                </Link>
+                                <button
+                                    type="button"
+                                    className="detail-dock__close"
+                                    aria-label="Cerrar detalle"
+                                    onClick={() => select(undefined)}
+                                >
+                                    ×
+                                </button>
+                            </header>
+                            <div className="detail-dock__body">
+                                {selectedItem && (
+                                    <dl className="detail-dock__who">
+                                        <dt>Destinatario</dt>
+                                        <dd title={selectedItem.recipientId}>
+                                            {selectedItem.recipientId}
+                                        </dd>
+                                    </dl>
+                                )}
+                                <NotificationDetail
+                                    id={selectedId}
+                                    variant="panel"
+                                    historyItem={selectedItem}
+                                />
+                            </div>
+                        </aside>
+                    )}
                 </div>
             )}
 

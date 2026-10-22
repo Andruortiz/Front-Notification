@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { requireSession, sessionModeUrl } from './session';
+import LoginPage from './LoginPage';
+import { checkSession, login, sessionModeUrl } from './session';
 
-type GateState = 'checking' | 'ready' | 'error';
+type GateState = 'checking' | 'ready' | 'unauthenticated' | 'error';
 
 export default function SessionGate({ children }: { children: ReactNode }) {
     const pdpUrl = sessionModeUrl();
@@ -13,10 +14,10 @@ export default function SessionGate({ children }: { children: ReactNode }) {
             return;
         }
         let cancelled = false;
-        requireSession(pdpUrl)
+        checkSession(pdpUrl)
             .then((active) => {
-                if (!cancelled && active) {
-                    setState('ready');
+                if (!cancelled) {
+                    setState(active ? 'ready' : 'unauthenticated');
                 }
             })
             .catch(() => {
@@ -31,6 +32,10 @@ export default function SessionGate({ children }: { children: ReactNode }) {
 
     if (state === 'ready') {
         return <>{children}</>;
+    }
+
+    if (state === 'unauthenticated' && pdpUrl) {
+        return <LoginPage onLogin={() => login(pdpUrl)} />;
     }
 
     if (state === 'error') {

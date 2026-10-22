@@ -1,15 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { getChannels } from '../../api/catalog';
 import { deriveChannelRules } from '../../lib/channelRules';
+import ChannelIcon from '../catalog/ChannelIcon';
 
 interface ChannelSelectProps {
     value: string;
     onChange: (channelType: string) => void;
     error?: string;
-    selectRef?: (element: HTMLSelectElement | null) => void;
+    fieldRef?: (element: HTMLElement | null) => void;
 }
 
-export default function ChannelSelect({ value, onChange, error, selectRef }: ChannelSelectProps) {
+export default function ChannelSelect({ value, onChange, error, fieldRef }: ChannelSelectProps) {
     const { data, isLoading, isError } = useQuery({
         queryKey: ['catalog', 'channels'],
         queryFn: getChannels,
@@ -31,40 +32,52 @@ export default function ChannelSelect({ value, onChange, error, selectRef }: Cha
         return <div className="state-message">No hay canales registrados para enviar.</div>;
     }
 
-    const hasAvailableChannel = data.items.some((channel) => deriveChannelRules(channel).available);
+    const channels = data.items.map((channel) => ({
+        channelType: channel.channelType,
+        rules: deriveChannelRules(channel),
+    }));
+    const unavailable = channels.filter((channel) => !channel.rules.available);
 
     return (
         <div className="form-field">
-            <label htmlFor="send-channel">Canal</label>
-            <select
-                id="send-channel"
-                ref={selectRef}
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                aria-invalid={error ? true : undefined}
+            <span id="send-channel-label" className="form-label">
+                Canal
+            </span>
+            <div
+                ref={fieldRef}
+                tabIndex={-1}
+                role="radiogroup"
+                aria-labelledby="send-channel-label"
                 aria-describedby={error ? 'send-channel-error' : undefined}
+                className="channel-picker"
             >
-                <option value="">Elegí un canal</option>
-                {data.items.map((channel) => {
-                    const rules = deriveChannelRules(channel);
-                    return (
-                        <option
-                            key={channel.channelType}
-                            value={channel.channelType}
-                            disabled={!rules.available}
-                        >
-                            {channel.channelType}
-                            {!rules.available ? ` (no disponible: ${rules.unavailableReason})` : ''}
-                        </option>
-                    );
-                })}
-            </select>
+                {channels.map(({ channelType, rules }) => (
+                    <button
+                        key={channelType}
+                        type="button"
+                        role="radio"
+                        aria-checked={value === channelType}
+                        disabled={!rules.available}
+                        title={rules.available ? undefined : (rules.unavailableReason ?? undefined)}
+                        className="channel-picker__option"
+                        onClick={() => onChange(channelType)}
+                    >
+                        <ChannelIcon channelType={channelType} />
+                        {channelType}
+                    </button>
+                ))}
+            </div>
             {error && (
                 <p id="send-channel-error" className="field-error">
                     {error}
                 </p>
             )}
-            {!hasAvailableChannel && (
+            {unavailable.map(({ channelType, rules }) => (
+                <p key={channelType} className="field-hint">
+                    {channelType} no disponible: {rules.unavailableReason}
+                </p>
+            ))}
+            {unavailable.length === channels.length && (
                 <p className="field-hint">
                     Ningún canal tiene un proveedor disponible; no se puede enviar.
                 </p>

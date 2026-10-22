@@ -26,6 +26,10 @@ export async function mountSecurityUi(container: HTMLElement): Promise<void> {
         return;
     }
 
+    // El bundle de Security UI deja `process.env.NODE_ENV` sin reemplazar y el navegador no tiene `process`.
+    const runtime = globalThis as { process?: { env: Record<string, string> } };
+    runtime.process ??= { env: { NODE_ENV: 'production' } };
+
     const remote = (await import(/* @vite-ignore */ bundleUrl)) as SecurityUiModule;
     remote.mount(container, {
         applicationName,

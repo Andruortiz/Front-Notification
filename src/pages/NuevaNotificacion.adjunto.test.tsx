@@ -64,7 +64,7 @@ function renderPage() {
 type User = ReturnType<typeof userEvent.setup>;
 
 async function fillIndividual(user: User) {
-    await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+    await user.click(await screen.findByRole('radio', { name: 'EMAIL' }));
     await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
     await typeSubject(user);
     await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
@@ -411,7 +411,7 @@ describe('NuevaNotificacion (adjuntos)', () => {
     it('en un canal que no declara adjuntos no muestra la opción de adjuntar', async () => {
         renderPage();
         const user = userEvent.setup();
-        await user.selectOptions(await screen.findByLabelText('Canal'), 'SMS');
+        await user.click(await screen.findByRole('radio', { name: 'SMS' }));
 
         expect(await screen.findByLabelText('Número de teléfono')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Adjuntar archivos' })).not.toBeInTheDocument();
@@ -426,7 +426,7 @@ describe('NuevaNotificacion (adjuntos)', () => {
         const user = userEvent.setup();
         await fillIndividual(user);
         await attachViaDialog(user, pdf());
-        await user.selectOptions(screen.getByLabelText('Canal'), 'SMS');
+        await user.click(await screen.findByRole('radio', { name: 'SMS' }));
         await user.clear(screen.getByLabelText('Número de teléfono'));
         await user.type(screen.getByLabelText('Número de teléfono'), '+573001234567');
         await user.click(screen.getByRole('button', { name: 'Enviar' }));
@@ -445,7 +445,7 @@ describe('NuevaNotificacion (adjuntos)', () => {
 
         renderPage();
         const user = userEvent.setup();
-        await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+        await user.click(await screen.findByRole('radio', { name: 'EMAIL' }));
         await user.type(
             screen.getByLabelText('Correo electrónico'),
             'alice@example.com, bob@example.com',

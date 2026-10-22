@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SessionGate from './SessionGate';
-import { requireSession } from './session';
+import { checkSession } from './session';
 
 vi.mock('./session', async (importOriginal) => ({
     ...(await importOriginal()),
-    requireSession: vi.fn(),
+    checkSession: vi.fn(),
 }));
 
 describe('SessionGate', () => {
     beforeEach(() => {
-        vi.mocked(requireSession).mockReset();
+        vi.mocked(checkSession).mockReset();
         vi.stubEnv('VITE_PDP_URL', 'http://pdp.test');
         vi.stubEnv('VITE_AUTH_TOKEN', '');
     });
@@ -21,7 +21,7 @@ describe('SessionGate', () => {
     });
 
     it('muestra el contenido cuando hay sesión activa', async () => {
-        vi.mocked(requireSession).mockResolvedValue(true);
+        vi.mocked(checkSession).mockResolvedValue(true);
 
         render(
             <SessionGate>
@@ -30,11 +30,13 @@ describe('SessionGate', () => {
         );
 
         expect(await screen.findByText('panel')).toBeInTheDocument();
-        expect(requireSession).toHaveBeenCalledWith('http://pdp.test');
+        expect(checkSession).toHaveBeenCalledWith('http://pdp.test');
     });
 
-    it('no muestra el contenido mientras se redirige al login', async () => {
-        vi.mocked(requireSession).mockResolvedValue(false);
+    it('muestra la pagina de acceso, sin redirigir solo, cuando no hay sesión', async () => {
+        vi.mocked(checkSession).mockResolvedValue(false);
+        const assign = vi.fn();
+        vi.stubGlobal('location', { href: 'http://localhost:5173/', assign });
 
         render(
             <SessionGate>
@@ -42,14 +44,18 @@ describe('SessionGate', () => {
             </SessionGate>,
         );
 
-        await waitFor(() => expect(requireSession).toHaveBeenCalledTimes(1));
-        expect(screen.getByRole('status')).toHaveTextContent('Verificando la sesión');
+        await userEvent.click(await screen.findByRole('button', { name: 'Iniciar sesión' }));
+
         expect(screen.queryByText('panel')).not.toBeInTheDocument();
+        expect(assign).toHaveBeenCalledWith(
+            `http://pdp.test/oauth2/authorization/keycloak?return_to=${encodeURIComponent('http://localhost:5173/')}`,
+        );
+        vi.unstubAllGlobals();
     });
 
     it('muestra el error y permite reintentar cuando la consulta falla', async () => {
-        vi.mocked(requireSession).mockRejectedValueOnce(new Error('caído'));
-        vi.mocked(requireSession).mockResolvedValueOnce(true);
+        vi.mocked(checkSession).mockRejectedValueOnce(new Error('caído'));
+        vi.mocked(checkSession).mockResolvedValueOnce(true);
 
         render(
             <SessionGate>
@@ -61,7 +67,7 @@ describe('SessionGate', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
 
         expect(await screen.findByText('panel')).toBeInTheDocument();
-        expect(requireSession).toHaveBeenCalledTimes(2);
+        expect(checkSession).toHaveBeenCalledTimes(2);
     });
 
     it('no consulta la sesión sin VITE_PDP_URL', () => {
@@ -74,7 +80,7 @@ describe('SessionGate', () => {
         );
 
         expect(screen.getByText('panel')).toBeInTheDocument();
-        expect(requireSession).not.toHaveBeenCalled();
+        expect(checkSession).not.toHaveBeenCalled();
     });
 
     it('no consulta la sesión cuando hay un token fijo de desarrollo', () => {
@@ -87,6 +93,6 @@ describe('SessionGate', () => {
         );
 
         expect(screen.getByText('panel')).toBeInTheDocument();
-        expect(requireSession).not.toHaveBeenCalled();
+        expect(checkSession).not.toHaveBeenCalled();
     });
 });

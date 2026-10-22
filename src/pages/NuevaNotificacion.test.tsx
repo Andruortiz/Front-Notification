@@ -89,7 +89,7 @@ describe('NuevaNotificacion (individual)', () => {
         renderPage();
         const user = userEvent.setup();
 
-        await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+        await user.click(await screen.findByRole('radio', { name: 'EMAIL' }));
         await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
         await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
@@ -111,7 +111,7 @@ describe('NuevaNotificacion (individual)', () => {
 
         renderPage();
         const user = userEvent.setup();
-        await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+        await user.click(await screen.findByRole('radio', { name: 'EMAIL' }));
         await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
         await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
@@ -129,7 +129,7 @@ describe('NuevaNotificacion (individual)', () => {
 
         renderPage();
         const user = userEvent.setup();
-        await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+        await user.click(await screen.findByRole('radio', { name: 'EMAIL' }));
         await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
         await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
@@ -143,10 +143,10 @@ describe('NuevaNotificacion (individual)', () => {
     it('ajusta los campos visibles y el límite de caracteres al cambiar de canal', async () => {
         renderPage();
         const user = userEvent.setup();
-        await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+        await user.click(await screen.findByRole('radio', { name: 'EMAIL' }));
         expect(screen.getByLabelText('Asunto')).toBeInTheDocument();
 
-        await user.selectOptions(screen.getByLabelText('Canal'), 'SMS');
+        await user.click(await screen.findByRole('radio', { name: 'SMS' }));
         expect(screen.queryByLabelText('Asunto')).not.toBeInTheDocument();
         expect(screen.getByText('0 / 160')).toBeInTheDocument();
     });
@@ -165,7 +165,7 @@ describe('NuevaNotificacion (individual)', () => {
 
         renderPage();
         const user = userEvent.setup();
-        await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+        await user.click(await screen.findByRole('radio', { name: 'EMAIL' }));
         await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
         await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
@@ -199,7 +199,7 @@ describe('NuevaNotificacion (individual)', () => {
 
         renderPage();
         const user = userEvent.setup();
-        await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+        await user.click(await screen.findByRole('radio', { name: 'EMAIL' }));
         await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
         await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
@@ -228,7 +228,7 @@ describe('NuevaNotificacion (individual)', () => {
 
         renderPage();
         const user = userEvent.setup();
-        await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+        await user.click(await screen.findByRole('radio', { name: 'EMAIL' }));
         await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
         await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
@@ -236,7 +236,7 @@ describe('NuevaNotificacion (individual)', () => {
         await screen.findByText('Notificación aceptada');
 
         await user.click(screen.getByRole('button', { name: 'Enviar otra' }));
-        await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+        await user.click(await screen.findByRole('radio', { name: 'EMAIL' }));
         await user.type(screen.getByLabelText('Correo electrónico'), 'alice@example.com');
         await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola Alice');
@@ -250,7 +250,7 @@ describe('NuevaNotificacion (individual)', () => {
     it('anuncia los errores de validación y enfoca el primer campo inválido', async () => {
         renderPage();
         const user = userEvent.setup();
-        await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+        await user.click(await screen.findByRole('radio', { name: 'EMAIL' }));
         await user.click(screen.getByRole('button', { name: 'Enviar' }));
 
         expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -266,7 +266,7 @@ describe('NuevaNotificacion (varios destinatarios en el mismo campo)', () => {
     });
 
     async function fillChannelAndMessage(user: ReturnType<typeof userEvent.setup>) {
-        await user.selectOptions(await screen.findByLabelText('Canal'), 'EMAIL');
+        await user.click(await screen.findByRole('radio', { name: 'EMAIL' }));
         await typeSubject(user);
         await user.type(screen.getByLabelText('Mensaje'), 'Hola a todos');
     }

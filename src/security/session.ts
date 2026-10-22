@@ -12,6 +12,14 @@ function goToLogin(pdpUrl: string): void {
     window.location.assign(`${pdpUrl}/oauth2/authorization/keycloak?return_to=${returnTo}`);
 }
 
+export function login(pdpUrl: string): void {
+    goToLogin(pdpUrl);
+}
+
+export function logout(pdpUrl: string): void {
+    window.location.assign(`${pdpUrl}/api/v1/session/logout`);
+}
+
 function readLastRelogin(): number {
     try {
         return Number(window.sessionStorage.getItem(RELOGIN_KEY)) || 0;
@@ -37,11 +45,10 @@ export function reloginOnUnauthorized(pdpUrl: string, now: number = Date.now()):
     return true;
 }
 
-export async function requireSession(pdpUrl: string): Promise<boolean> {
+export async function checkSession(pdpUrl: string): Promise<boolean> {
     const response = await fetch(`${pdpUrl}/api/v1/session`, { credentials: 'include' });
 
     if (response.status === 401) {
-        goToLogin(pdpUrl);
         return false;
     }
 
@@ -50,4 +57,12 @@ export async function requireSession(pdpUrl: string): Promise<boolean> {
     }
 
     return true;
+}
+
+export async function requireSession(pdpUrl: string): Promise<boolean> {
+    if (await checkSession(pdpUrl)) {
+        return true;
+    }
+    goToLogin(pdpUrl);
+    return false;
 }

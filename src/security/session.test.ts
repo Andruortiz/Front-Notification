@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '../test/server';
-import { requireSession } from './session';
+import { checkSession, logout, requireSession } from './session';
 
 const PDP = 'http://pdp.test';
 
@@ -38,6 +38,25 @@ describe('requireSession', () => {
         expect(assign).toHaveBeenCalledWith(
             `${PDP}/oauth2/authorization/keycloak?return_to=${encodeURIComponent('http://localhost:5173/seguridad')}`,
         );
+    });
+
+    it('checkSession devuelve false sin redirigir cuando la sesión no existe', async () => {
+        const assign = stubLocation('http://localhost:5173/');
+        server.use(
+            http.get(`${PDP}/api/v1/session`, () => new HttpResponse(null, { status: 401 })),
+        );
+
+        await expect(checkSession(PDP)).resolves.toBe(false);
+
+        expect(assign).not.toHaveBeenCalled();
+    });
+
+    it('logout cierra la sesión en el PDP', () => {
+        const assign = stubLocation('http://localhost:5173/');
+
+        logout(PDP);
+
+        expect(assign).toHaveBeenCalledWith(`${PDP}/api/v1/session/logout`);
     });
 
     it('falla cuando el PDP responde con un error distinto de 401', async () => {
