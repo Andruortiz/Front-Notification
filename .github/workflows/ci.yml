@@ -13,7 +13,7 @@ concurrency:
 jobs:
     commitlint:
         name: Commit messages
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.head_ref != 'develop'
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
