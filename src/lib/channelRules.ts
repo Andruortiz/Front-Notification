@@ -17,9 +17,13 @@ export interface ChannelRules {
     available: boolean;
     unavailableReason: string | null;
     attachments: ChannelAttachmentRules | null;
+    providerTemplate: boolean;
 }
 
-type BaseRules = Omit<ChannelRules, 'available' | 'unavailableReason' | 'attachments'>;
+type BaseRules = Omit<
+    ChannelRules,
+    'available' | 'unavailableReason' | 'attachments' | 'providerTemplate'
+>;
 
 function addressRules(
     addressError: (address: string) => string | null,
@@ -51,6 +55,14 @@ const KNOWN_RULES: Record<string, BaseRules> = {
         subject: 'optional',
         subjectMax: 100,
         bodyMax: 900,
+    },
+    WHATSAPP: {
+        addressLabel: 'Número de WhatsApp',
+        addressExample: '+573001234567',
+        ...addressRules(validatePhoneNumber),
+        subject: 'hidden',
+        subjectMax: null,
+        bodyMax: 1600,
     },
 };
 
@@ -119,6 +131,18 @@ export function readAttachmentRules(contentSchema: string | null): ChannelAttach
     }
 }
 
+export function readProviderTemplateSupport(contentSchema: string | null): boolean {
+    if (!contentSchema) {
+        return false;
+    }
+    try {
+        const parsed = JSON.parse(contentSchema) as { properties?: Record<string, unknown> };
+        return Boolean(parsed.properties?.providerTemplate);
+    } catch {
+        return false;
+    }
+}
+
 export function deriveChannelRules(channel: ChannelItem): ChannelRules {
     const base = KNOWN_RULES[channel.channelType] ?? DEFAULT_RULES;
     const enabledProvider = channel.providers.find((provider) => provider.status === 'ENABLED');
@@ -134,5 +158,6 @@ export function deriveChannelRules(channel: ChannelItem): ChannelRules {
         available,
         unavailableReason,
         attachments: readAttachmentRules(channel.contentSchema),
+        providerTemplate: readProviderTemplateSupport(channel.contentSchema),
     };
 }

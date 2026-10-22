@@ -331,7 +331,7 @@ export interface components {
              */
             externalId: string;
             /**
-             * @description Canal registrado en el catálogo. La configuración por defecto declara EMAIL, SMS y PUSH.
+             * @description Canal registrado en el catálogo. La configuración por defecto declara EMAIL, SMS, PUSH y WHATSAPP.
              * @example EMAIL
              */
             channelType: string;
@@ -341,22 +341,40 @@ export interface components {
              */
             recipientId: string;
             /**
-             * @description Dirección concreta del canal usado en este envío (email, teléfono, etc.). En SMS es un número en formato internacional (signo +, código de país y número, ej. +573001234567); un número sin ese formato termina en FAILED sin enviarse. En PUSH es el identificador de dispositivo que el proveedor de push emitió a la aplicación cliente (ej. device-token-demo-1234); se trata como texto opaco y no se valida su forma: un identificador inválido o caducado termina en FAILED sin reintentos.
+             * @description Dirección concreta del canal usado en este envío (email, teléfono, etc.). En SMS es un número en formato internacional (signo +, código de país y número, ej. +573001234567); un número sin ese formato termina en FAILED sin enviarse. En PUSH es el identificador de dispositivo que el proveedor de push emitió a la aplicación cliente (ej. device-token-demo-1234); se trata como texto opaco y no se valida su forma: un identificador inválido o caducado termina en FAILED sin reintentos. En WHATSAPP es un número en formato internacional (ej. +573001234567); un número sin ese formato, o sin cuenta de WhatsApp, termina en FAILED sin reintentos.
              * @example alice@example.com
              */
             recipientAddress: string;
             /**
-             * @description Opcional -- algunos canales (ej. SMS) no lo usan. En SMS se admite y se ignora: no se envía ni se antepone al cuerpo. En PUSH es el título visible, opcional, de hasta 100 caracteres.
+             * @description Opcional -- algunos canales (ej. SMS) no lo usan. En SMS se admite y se ignora: no se envía ni se antepone al cuerpo. En PUSH es el título visible, opcional, de hasta 100 caracteres. En WHATSAPP se admite y se ignora.
              * @example Bienvenida
              */
             subject?: string | null;
             /**
-             * @description Cuerpo de la notificación. La longitud máxima la fija la forma de contenido del canal en el catálogo; en SMS son 160 caracteres y en PUSH 900 por defecto. Un contenido más largo se rechaza con 400 y nunca se trunca.
+             * @description Cuerpo de la notificación. Obligatorio salvo que se envíe providerTemplate; no puede enviarse junto con providerTemplate. La longitud máxima la fija la forma de contenido del canal en el catálogo; en SMS son 160 caracteres, en PUSH 900 y en WHATSAPP 1600 por defecto. Un contenido más largo se rechaza con 400 y nunca se trunca.
              * @example Hola Alice, tu pedido fue confirmado.
              */
-            body: string;
+            body?: string | null;
+            /** @description Opcional. Envía una plantilla aprobada por el proveedor en lugar de un cuerpo libre; excluyente con body. El canal debe declararla en su forma de contenido (GET /channels, contentSchema, propiedad providerTemplate); con la configuración por defecto solo WHATSAPP lo hace y cualquier otro canal rechaza la notificación con 400. Fuera de la ventana de 24 h de WhatsApp solo se admiten plantillas; un texto libre que el proveedor rechaza por estar fuera de la ventana termina en FAILED sin reintentos. El servicio valida la forma (referencia presente, a lo sumo 20 variables de hasta 1024 caracteres); que la plantilla exista y esté aprobada, y que no falte ninguna de sus variables, lo decide el proveedor al enviar y un rechazo termina en FAILED. */
+            providerTemplate?: {
+                /**
+                 * @description Identificador de la plantilla aprobada ante el proveedor.
+                 * @example HXb5b62575e6e4ff6129ad7c8efe1f983e
+                 */
+                templateId: string;
+                /**
+                 * @description Valores de las variables de la plantilla, por nombre.
+                 * @example {
+                 *       "1": "Alice",
+                 *       "2": "42"
+                 *     }
+                 */
+                variables?: {
+                    [key: string]: string;
+                };
+            } | null;
             priority: components["schemas"]["Priority"];
-            /** @description Opcional. Archivos que acompañan la notificación, en el orden en que se entregarán. El canal debe declararlos en su forma de contenido (ver GET /channels, campo contentSchema, propiedad attachments); un canal que no los declara rechaza toda notificación con adjuntos. Con la configuración por defecto ningún canal los declara. Cada adjunto lleva exactamente uno de content (archivo de hasta 1 MB codificado en Base64) o url (archivo de más de 1 MB subido antes con POST /attachment-uploads y en estado CLEAN). A lo sumo 5 adjuntos y 25 MB (26214400 bytes) en total. El servicio verifica el tipo real de cada archivo y lo analiza con un antivirus. Una notificación con un adjunto inválido se rechaza completa; nunca se acepta sin el adjunto. Si el proveedor que la despacha no sabe enviar adjuntos, termina en FAILED sin enviarse. */
+            /** @description Opcional. Archivos que acompañan la notificación, en el orden en que se entregarán. El canal debe declararlos en su forma de contenido (ver GET /channels, campo contentSchema, propiedad attachments); un canal que no los declara rechaza toda notificación con adjuntos. Con la configuración por defecto ningún canal los declara (tampoco WHATSAPP). Cada adjunto lleva exactamente uno de content (archivo de hasta 1 MB codificado en Base64) o url (archivo de más de 1 MB subido antes con POST /attachment-uploads y en estado CLEAN). A lo sumo 5 adjuntos y 25 MB (26214400 bytes) en total. El servicio verifica el tipo real de cada archivo y lo analiza con un antivirus. Una notificación con un adjunto inválido se rechaza completa; nunca se acepta sin el adjunto. Si el proveedor que la despacha no sabe enviar adjuntos, termina en FAILED sin enviarse. */
             attachments?: components["schemas"]["Attachment"][] | null;
         };
         Attachment: {

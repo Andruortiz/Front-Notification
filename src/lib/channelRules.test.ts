@@ -41,11 +41,28 @@ describe('deriveChannelRules', () => {
     });
 
     it('degrada a lo mínimo para un canal desconocido', () => {
-        const rules = deriveChannelRules(channelItem({ channelType: 'WHATSAPP' }));
+        const rules = deriveChannelRules(channelItem({ channelType: 'TELEGRAM' }));
         expect(rules.subject).toBe('optional');
         expect(rules.bodyMax).toBeNull();
         expect(rules.validateAddress('cualquier-cosa')).toBe(true);
         expect(rules.validateAddress('  ')).toBe(false);
+        expect(rules.providerTemplate).toBe(false);
+    });
+
+    it('aplica las reglas de WhatsApp y detecta que admite plantilla', () => {
+        const rules = deriveChannelRules(
+            channelItem({
+                channelType: 'WHATSAPP',
+                contentSchema:
+                    '{"type":"object","properties":{"body":{"maxLength":1600},"providerTemplate":{"type":"object"}}}',
+            }),
+        );
+        expect(rules.addressLabel).toBe('Número de WhatsApp');
+        expect(rules.subject).toBe('hidden');
+        expect(rules.bodyMax).toBe(1600);
+        expect(rules.validateAddress('+573137188896')).toBe(true);
+        expect(rules.validateAddress('3137188896')).toBe(false);
+        expect(rules.providerTemplate).toBe(true);
     });
 
     it('marca el canal como no disponible cuando ningún proveedor está ENABLED', () => {

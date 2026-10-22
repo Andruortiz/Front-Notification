@@ -30,7 +30,8 @@ export interface BatchSendRow {
 export interface BatchSendMeta {
     channelType: string;
     subject?: string;
-    body: string;
+    body?: string;
+    providerTemplate?: SendNotificationRequest['providerTemplate'];
     priority: Priority;
     attachments?: File[];
 }
@@ -58,6 +59,7 @@ async function sendWithAttachment(
             recipientAddress: row.address,
             subject: meta.subject,
             body: meta.body,
+            providerTemplate: meta.providerTemplate,
             priority: meta.priority,
             attachments,
         });
@@ -144,6 +146,7 @@ export async function performBatchSend(
             recipientAddress: row.address,
             subject: meta.subject,
             body: meta.body,
+            providerTemplate: meta.providerTemplate,
             priority: meta.priority,
         }));
 

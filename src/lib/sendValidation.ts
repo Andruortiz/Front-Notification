@@ -1,5 +1,6 @@
 import { validateAttachmentFile, validateAttachmentSet } from './attachment';
 import { MAX_CONTENT_LENGTH, hasControlCharacters } from './validators';
+import { validateTemplate } from './providerTemplate';
 import type { ChannelRules } from './channelRules';
 import type { RecipientEntry } from './recipients';
 
@@ -9,19 +10,38 @@ export interface SendDraft {
     subject: string;
     body: string;
     priority: 'LOW' | 'NORMAL' | 'HIGH';
+    templateId?: string;
+    templateVariables?: string;
 }
 
 export type SendDraftErrors = Partial<
-    Record<'channelType' | 'address' | 'subject' | 'body', string>
+    Record<'channelType' | 'address' | 'subject' | 'body' | 'template', string>
 >;
 
 interface ContentErrors {
     subject?: string;
     body?: string;
+    template?: string;
 }
 
-function validateContent(subject: string, body: string, rules: ChannelRules): ContentErrors {
+interface TemplateInput {
+    templateId?: string;
+    templateVariables?: string;
+}
+
+function validateContent(
+    subject: string,
+    body: string,
+    rules: ChannelRules,
+    template: TemplateInput = {},
+): ContentErrors {
     const errors: ContentErrors = {};
+    if (template.templateId?.trim()) {
+        const templateError = rules.providerTemplate
+            ? validateTemplate(template.templateId, template.templateVariables ?? '')
+            : 'Este canal no admite plantillas del proveedor.';
+        return templateError ? { template: templateError } : errors;
+    }
     const subjectSent = rules.subject !== 'hidden';
 
     if (subjectSent) {
@@ -80,13 +100,21 @@ export function validateSendDraft(
         errors.address = addressError;
     }
 
-    return { ...errors, ...validateContent(draft.subject, draft.body, channel.rules) };
+    return { ...errors, ...validateContent(draft.subject, draft.body, channel.rules, draft) };
 }
 
-export type BatchDraftErrors = Partial<Record<'channelType' | 'subject' | 'body', string>>;
+export type BatchDraftErrors = Partial<
+    Record<'channelType' | 'subject' | 'body' | 'template', string>
+>;
 
 export function validateBatchDraft(
-    draft: { channelType: string; subject: string; body: string },
+    draft: {
+        channelType: string;
+        subject: string;
+        body: string;
+        templateId?: string;
+        templateVariables?: string;
+    },
     rules: ChannelRules | undefined,
 ): BatchDraftErrors {
     const errors: BatchDraftErrors = {};
@@ -100,7 +128,7 @@ export function validateBatchDraft(
         errors.channelType = channel.rules.unavailableReason ?? 'Este canal no está disponible.';
     }
 
-    return { ...errors, ...validateContent(draft.subject, draft.body, channel.rules) };
+    return { ...errors, ...validateContent(draft.subject, draft.body, channel.rules, draft) };
 }
 
 export function validateRecipientEntries(
