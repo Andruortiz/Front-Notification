@@ -1,0 +1,133 @@
+import { http, HttpResponse } from 'msw';
+import type { components } from '../../api/schema';
+
+type NotificationHistoryItem = components['schemas']['NotificationHistoryItem'];
+type NotificationSearchResponse = components['schemas']['NotificationSearchResponse'];
+type NotificationStatusResponse = components['schemas']['NotificationStatusResponse'];
+type NotificationLiveUpdate = components['schemas']['NotificationLiveUpdate'];
+type SendNotificationResponse = components['schemas']['SendNotificationResponse'];
+type BatchAcceptedResponse = components['schemas']['BatchAcceptedResponse'];
+type BatchItemResult = components['schemas']['BatchItemResult'];
+
+export const notificationHistoryItem = (
+    overrides: Partial<NotificationHistoryItem> = {},
+): NotificationHistoryItem => ({
+    notificationId: 'notif-1',
+    externalId: 'order-1',
+    recipientId: 'recipient-1',
+    channelType: 'EMAIL',
+    status: 'PENDING',
+    acceptedAt: '2026-09-25T10:00:00Z',
+    deliveryAttempts: [],
+    ...overrides,
+});
+
+export const notificationStatusResponse = (
+    overrides: Partial<NotificationStatusResponse> = {},
+): NotificationStatusResponse => ({
+    notificationId: 'notif-1',
+    status: 'PENDING',
+    channelType: 'EMAIL',
+    providerId: null,
+    lastUpdatedAt: '2026-09-25T10:00:00Z',
+    correlationId: null,
+    ...overrides,
+});
+
+export const sendNotificationResponse = (
+    overrides: Partial<SendNotificationResponse> = {},
+): SendNotificationResponse => ({
+    notificationId: 'notif-1',
+    status: 'PENDING',
+    duplicate: false,
+    ...overrides,
+});
+
+export const batchItemResult = (overrides: Partial<BatchItemResult> = {}): BatchItemResult => ({
+    externalId: 'panel-1-0',
+    outcome: 'ACCEPTED',
+    notificationId: 'notif-1',
+    rejectionReason: null,
+    ...overrides,
+});
+
+export const batchAcceptedResponse = (
+    overrides: Partial<BatchAcceptedResponse> = {},
+): BatchAcceptedResponse => ({
+    batchId: 'batch-1',
+    trackingSaved: true,
+    results: [],
+    ...overrides,
+});
+
+let currentSseController: ReadableStreamDefaultController<Uint8Array> | null = null;
+
+const encoder = new TextEncoder();
+
+function encodeSseEvent(update: NotificationLiveUpdate): Uint8Array {
+    return encoder.encode(`event: update\ndata: ${JSON.stringify(update)}\n\n`);
+}
+
+/** Solo para pruebas: envía un evento `update` a la conexión SSE actualmente abierta. */
+export function emitLiveUpdate(update: NotificationLiveUpdate): void {
+    if (!currentSseController) {
+        throw new Error('No hay ninguna conexion SSE abierta para emitir un evento de prueba');
+    }
+    currentSseController.enqueue(encodeSseEvent(update));
+}
+
+/** Solo para pruebas: cierra la conexión SSE actual, simulando una caída. */
+export function closeLiveConnection(): void {
+    currentSseController?.close();
+    currentSseController = null;
+}
+
+export const handlers = [
+    http.get('*/notifications', () => {
+        const response: NotificationSearchResponse = {
+            items: [notificationHistoryItem()],
+            limit: 50,
+            offset: 0,
+            hasNext: false,
+        };
+        return HttpResponse.json(response);
+    }),
+
+    http.get('*/notifications/stream', () => {
+        const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+                currentSseController = controller;
+            },
+            cancel() {
+                currentSseController = null;
+            },
+        });
+
+        return new HttpResponse(stream, {
+            headers: { 'Content-Type': 'text/event-stream' },
+        });
+    }),
+
+    http.get('*/notifications/detail', ({ request }) => {
+        const response = notificationStatusResponse({
+            notificationId: String(new URL(request.url).searchParams.get('notificationId')),
+        });
+        return HttpResponse.json(response);
+    }),
+
+    http.post('*/notifications', () => {
+        return HttpResponse.json(sendNotificationResponse(), { status: 202 });
+    }),
+
+    http.post('*/notifications/batches', () => {
+        return HttpResponse.json(batchAcceptedResponse(), { status: 202 });
+    }),
+
+    http.post('*/notification-retries', async ({ request }) => {
+        const body = (await request.json()) as { notificationId?: string };
+        return HttpResponse.json(
+            notificationStatusResponse({ notificationId: body.notificationId ?? 'unknown' }),
+            { status: 202 },
+        );
+    }),
+];

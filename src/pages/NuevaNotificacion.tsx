@@ -1,0 +1,608 @@
+import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getChannels } from '../api/catalog';
+import { deriveChannelRules } from '../lib/channelRules';
+import { parseRecipients, MAX_RECIPIENTS } from '../lib/recipients';
+import { attachmentsFingerprint } from '../lib/attachment';
+import { parseTemplateVariables } from '../lib/providerTemplate';
+import {
+    validateSendDraft,
+    validateBatchDraft,
+    validateRecipientEntries,
+    validateAttachments,
+    type SendDraft,
+} from '../lib/sendValidation';
+import { createSubmissionId, refreshSubmissionId, type SubmissionId } from '../lib/submissionId';
+import { useSendNotification, translateSendError } from '../hooks/useSendNotification';
+import { useSendBatch, type BatchSendRow, type SendOutcome } from '../hooks/useSendBatch';
+import AttachmentField from '../components/send/AttachmentField';
+import ChannelSelect from '../components/send/ChannelSelect';
+import ChannelSummary from '../components/send/ChannelSummary';
+import ProviderTemplateField from '../components/send/ProviderTemplateField';
+import PushTokenButton from '../components/send/PushTokenButton';
+import NotificationFields from '../components/send/NotificationFields';
+import SendResultPanel from '../components/send/SendResultPanel';
+import ConfirmSendDialog from '../components/send/ConfirmSendDialog';
+import BatchResultTable from '../components/send/BatchResultTable';
+import type { components } from '../api/schema';
+import type { RecipientEntry } from '../lib/recipients';
+
+type Priority = components['schemas']['Priority'];
+type SendNotificationResponse = components['schemas']['SendNotificationResponse'];
+type FormErrors = Partial<
+    Record<'channelType' | 'address' | 'subject' | 'body' | 'template' | 'attachment', string>
+>;
+
+const EMPTY_DRAFT_FIELDS = { address: '', subject: '', body: '', priority: 'NORMAL' as Priority };
+
+export default function NuevaNotificacion() {
+    const [channelType, setChannelType] = useState('');
+    const [address, setAddress] = useState('');
+    const [subject, setSubject] = useState('');
+    const [body, setBody] = useState('');
+    const [templateId, setTemplateId] = useState('');
+    const [templateVariables, setTemplateVariables] = useState('');
+    const [priority, setPriority] = useState<Priority>('NORMAL');
+    const [attachments, setAttachments] = useState<File[]>([]);
+    const [errors, setErrors] = useState<FormErrors>({});
+    const [result, setResult] = useState<SendNotificationResponse | null>(null);
+    const [submission, setSubmission] = useState<SubmissionId | null>(null);
+
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [batchEntries, setBatchEntries] = useState<RecipientEntry[] | null>(null);
+    const [batchExternalIds, setBatchExternalIds] = useState<string[] | null>(null);
+    const [batchOutcomes, setBatchOutcomes] = useState<SendOutcome[] | null>(null);
+
+    const channelFieldRef = useRef<HTMLElement | null>(null);
+    const addressFieldRef = useRef<HTMLTextAreaElement | null>(null);
+    const subjectFieldRef = useRef<HTMLInputElement | null>(null);
+    const bodyFieldRef = useRef<HTMLTextAreaElement | null>(null);
+    const templateFieldRef = useRef<HTMLInputElement | null>(null);
+
+    const { data: channelsData } = useQuery({
+        queryKey: ['catalog', 'channels'],
+        queryFn: getChannels,
+    });
+
+    const rules = useMemo(() => {
+        const channel = channelsData?.items.find((item) => item.channelType === channelType);
+        return channel ? deriveChannelRules(channel) : undefined;
+    }, [channelsData, channelType]);
+
+    const mutation = useSendNotification();
+    const { send: batchSend, isSending: batchIsSending, progress: batchProgress } = useSendBatch();
+
+    const parsedRecipients = useMemo(
+        () => parseRecipients(address, channelType),
+        [address, channelType],
+    );
+    const recipientRowErrors = useMemo(
+        () => (rules ? validateRecipientEntries(parsedRecipients.entries, rules) : {}),
+        [parsedRecipients, rules],
+    );
+    const isBatch = parsedRecipients.entries.length > 1;
+
+    type ContentField = 'address' | 'subject' | 'body';
+
+    function computeErrors(overrides: Partial<Record<ContentField, string>> = {}): FormErrors {
+        const values = { address, subject, body, ...overrides };
+        const parsed = parseRecipients(values.address, channelType);
+        let result: FormErrors;
+        if (parsed.entries.length > 1 || parsed.exceedsMax) {
+            result = validateBatchDraft(
+                {
+                    channelType,
+                    subject: values.subject,
+                    body: values.body,
+                    templateId,
+                    templateVariables,
+                },
+                rules,
+            );
+            if (parsed.exceedsMax) {
+                result.address = `Hay ${parsed.totalCount} destinatarios; el máximo es ${MAX_RECIPIENTS}.`;
+            } else if (
+                rules &&
+                Object.keys(validateRecipientEntries(parsed.entries, rules)).length
+            ) {
+                result.address = 'Corregí las direcciones con formato inválido.';
+            }
+        } else {
+            const draft: SendDraft = {
+                channelType,
+                address: parsed.entries[0]?.address ?? '',
+                subject: values.subject,
+                body: values.body,
+                priority,
+                templateId,
+                templateVariables,
+            };
+            result = validateSendDraft(draft, rules);
+        }
+        const attachmentError = validateAttachments(attachments, rules);
+        if (attachmentError) {
+            result.attachment = attachmentError;
+        }
+        return result;
+    }
+
+    function revalidateField(
+        field: ContentField,
+        overrides: Partial<Record<ContentField, string>>,
+    ) {
+        setErrors((previous) =>
+            previous[field] ? { ...previous, [field]: computeErrors(overrides)[field] } : previous,
+        );
+    }
+
+    function validateFieldOnBlur(field: ContentField) {
+        setErrors((previous) => ({ ...previous, [field]: computeErrors()[field] }));
+    }
+
+    function focusFirstError(fieldErrors: FormErrors) {
+        if (fieldErrors.channelType) {
+            channelFieldRef.current?.focus();
+        } else if (fieldErrors.address) {
+            addressFieldRef.current?.focus();
+        } else if (fieldErrors.subject) {
+            subjectFieldRef.current?.focus();
+        } else if (fieldErrors.template) {
+            templateFieldRef.current?.focus();
+        } else if (fieldErrors.body) {
+            bodyFieldRef.current?.focus();
+        }
+    }
+
+    const usingTemplate = Boolean(rules?.providerTemplate) && templateId.trim().length > 0;
+
+    function messageContent() {
+        if (!usingTemplate) {
+            return { body };
+        }
+        return {
+            providerTemplate: {
+                templateId: templateId.trim(),
+                variables: parseTemplateVariables(templateVariables).variables,
+            },
+        };
+    }
+
+    function contentFingerprint(): string {
+        return usingTemplate ? `template:${templateId.trim()}:${templateVariables}` : body;
+    }
+
+    function submitIndividual() {
+        const normalizedAddress = parsedRecipients.entries[0]?.address ?? '';
+        const validationErrors = computeErrors();
+        setErrors(validationErrors);
+        if (Object.keys(validationErrors).length > 0) {
+            focusFirstError(validationErrors);
+            return;
+        }
+
+        const nextSubmission = refreshSubmissionId(submission, {
+            channelType,
+            recipients: [normalizedAddress],
+            subject,
+            body: contentFingerprint(),
+            priority,
+            attachment: attachmentsFingerprint(attachments),
+        });
+        setSubmission(nextSubmission);
+
+        mutation.mutate(
+            {
+                request: {
+                    externalId: nextSubmission.id,
+                    channelType,
+                    recipientId: normalizedAddress,
+                    recipientAddress: normalizedAddress,
+                    subject:
+                        rules?.subject === 'hidden' || !subject.trim() ? undefined : subject.trim(),
+                    ...messageContent(),
+                    priority,
+                },
+                attachments,
+            },
+            { onSuccess: (data) => setResult(data) },
+        );
+    }
+
+    function submitBatch() {
+        const validationErrors = computeErrors();
+        setErrors(validationErrors);
+        if (Object.keys(validationErrors).length > 0) {
+            focusFirstError(validationErrors);
+            return;
+        }
+        setConfirmOpen(true);
+    }
+
+    function handleFormSubmit(event: FormEvent) {
+        event.preventDefault();
+        if (isBatch || parsedRecipients.exceedsMax) {
+            submitBatch();
+        } else {
+            submitIndividual();
+        }
+    }
+
+    async function handleConfirmSend() {
+        const newSubmission = createSubmissionId({
+            channelType,
+            recipients: parsedRecipients.entries.map((entry) => entry.address),
+            subject,
+            body: contentFingerprint(),
+            priority,
+            attachment: attachmentsFingerprint(attachments),
+        });
+        const externalIds = parsedRecipients.entries.map(
+            (_, index) => `${newSubmission.id}-${index}`,
+        );
+        const rows: BatchSendRow[] = parsedRecipients.entries.map((entry, index) => ({
+            externalId: externalIds[index],
+            recipientId: entry.recipientId,
+            address: entry.address,
+            skip: entry.duplicateOf !== null,
+        }));
+
+        setBatchEntries(parsedRecipients.entries);
+        setBatchExternalIds(externalIds);
+        setConfirmOpen(false);
+
+        const outcomes = await batchSend(rows, {
+            channelType,
+            subject: rules?.subject === 'hidden' || !subject.trim() ? undefined : subject.trim(),
+            ...messageContent(),
+            priority,
+            attachments,
+        });
+        setBatchOutcomes(outcomes);
+    }
+
+    async function handleResendRejected() {
+        if (!batchEntries || !batchExternalIds || !batchOutcomes) {
+            return;
+        }
+        const indicesToResend = batchOutcomes
+            .map((outcome, index) => ({ outcome, index }))
+            .filter(
+                ({ outcome }) =>
+                    outcome.outcome === 'REJECTED' || outcome.outcome === 'SIN_CONFIRMAR',
+            )
+            .map(({ index }) => index);
+
+        if (indicesToResend.length === 0) {
+            return;
+        }
+
+        const rows: BatchSendRow[] = indicesToResend.map((index) => ({
+            externalId: batchExternalIds[index],
+            recipientId: batchEntries[index].recipientId,
+            address: batchEntries[index].address,
+            skip: false,
+        }));
+
+        const resultsSubset = await batchSend(rows, {
+            channelType,
+            subject: rules?.subject === 'hidden' || !subject.trim() ? undefined : subject.trim(),
+            ...messageContent(),
+            priority,
+            attachments,
+        });
+
+        setBatchOutcomes((previous) => {
+            if (!previous) {
+                return previous;
+            }
+            const next = [...previous];
+            indicesToResend.forEach((originalIndex, position) => {
+                next[originalIndex] = resultsSubset[position];
+            });
+            return next;
+        });
+    }
+
+    function handleSendAnother() {
+        setResult(null);
+        setBatchEntries(null);
+        setBatchExternalIds(null);
+        setBatchOutcomes(null);
+        setAttachments([]);
+        setAddress(EMPTY_DRAFT_FIELDS.address);
+        setSubject(EMPTY_DRAFT_FIELDS.subject);
+        setBody(EMPTY_DRAFT_FIELDS.body);
+        setTemplateId('');
+        setTemplateVariables('');
+        setPriority(EMPTY_DRAFT_FIELDS.priority);
+        setErrors({});
+        mutation.reset();
+        setSubmission(
+            createSubmissionId({
+                channelType,
+                recipients: [EMPTY_DRAFT_FIELDS.address],
+                subject: EMPTY_DRAFT_FIELDS.subject,
+                body: EMPTY_DRAFT_FIELDS.body,
+                priority: EMPTY_DRAFT_FIELDS.priority,
+            }),
+        );
+    }
+
+    if (result) {
+        return (
+            <div>
+                <div className="page-header">
+                    <h1>Nueva notificación</h1>
+                </div>
+                <SendResultPanel result={result} onSendAnother={handleSendAnother} />
+            </div>
+        );
+    }
+
+    if (batchOutcomes) {
+        return (
+            <div>
+                <div className="page-header">
+                    <h1>Nueva notificación</h1>
+                </div>
+                <div className="card">
+                    <BatchResultTable
+                        outcomes={batchOutcomes}
+                        onResendRejected={() => {
+                            void handleResendRejected();
+                        }}
+                        resending={batchIsSending}
+                    />
+                    <button
+                        type="button"
+                        className="catalog-action-button"
+                        onClick={handleSendAnother}
+                        style={{ marginTop: 16 }}
+                    >
+                        Enviar otra
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (batchIsSending) {
+        return (
+            <div>
+                <div className="page-header">
+                    <h1>Nueva notificación</h1>
+                </div>
+                <div className="card">
+                    <p>
+                        Enviando...{' '}
+                        {batchProgress ? `${batchProgress.sent} / ${batchProgress.total}` : ''}
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    const hasErrors = Object.values(errors).some(Boolean);
+    const recipientsSummaryError = parsedRecipients.exceedsMax
+        ? `Hay ${parsedRecipients.totalCount} destinatarios; el máximo es ${MAX_RECIPIENTS}.`
+        : null;
+
+    const recipientsExtra = (
+        <>
+            {recipientsSummaryError ? (
+                <p className="field-error">{recipientsSummaryError}</p>
+            ) : (
+                isBatch && (
+                    <p className="field-hint">
+                        {parsedRecipients.entries.length} destinatario(s) detectado(s).
+                    </p>
+                )
+            )}
+            {!parsedRecipients.exceedsMax && isBatch && (
+                <div className="recipient-preview">
+                    {parsedRecipients.entries.map((entry, index) => (
+                        <div
+                            key={`${entry.address}-${index}`}
+                            className={
+                                recipientRowErrors[index]
+                                    ? 'recipient-preview-row recipient-preview-row--error'
+                                    : 'recipient-preview-row'
+                            }
+                        >
+                            <span>{entry.raw}</span>
+                            <span>
+                                {recipientRowErrors[index] ??
+                                    (entry.duplicateOf !== null ? 'Repetida' : '')}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </>
+    );
+
+    return (
+        <div>
+            <div className="page-header">
+                <h1>Nueva notificación</h1>
+                <p className="page-subtitle">
+                    Enviá una notificación por cualquier canal disponible, a un destinatario o a
+                    varios a la vez.
+                </p>
+            </div>
+
+            <div className="send-layout">
+                <form className="card send-card" onSubmit={handleFormSubmit} noValidate>
+                    <div className="send-card__header">
+                        <div>
+                            <p className="send-card__title">Detalles del envío</p>
+                            <p className="send-card__hint">
+                                Elegí el canal y completá el contenido del mensaje.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="send-card__body">
+                        {hasErrors && (
+                            <div
+                                role="alert"
+                                className="state-message state-message--error form-alert"
+                            >
+                                Corregí los campos señalados antes de enviar.
+                            </div>
+                        )}
+
+                        {mutation.isError && (
+                            <div
+                                role="alert"
+                                className="state-message state-message--error form-alert"
+                            >
+                                {translateSendError(mutation.error)}
+                            </div>
+                        )}
+
+                        <ChannelSelect
+                            value={channelType}
+                            onChange={(value) => {
+                                setChannelType(value);
+                                setErrors((prev) => ({
+                                    ...prev,
+                                    channelType: undefined,
+                                    attachment: undefined,
+                                }));
+                                const nextChannel = channelsData?.items.find(
+                                    (item) => item.channelType === value,
+                                );
+                                if (!nextChannel || !deriveChannelRules(nextChannel).attachments) {
+                                    setAttachments([]);
+                                }
+                                if (
+                                    !nextChannel ||
+                                    !deriveChannelRules(nextChannel).providerTemplate
+                                ) {
+                                    setTemplateId('');
+                                    setTemplateVariables('');
+                                }
+                            }}
+                            error={errors.channelType}
+                            fieldRef={(el) => {
+                                channelFieldRef.current = el;
+                            }}
+                        />
+
+                        {rules && (
+                            <>
+                                <NotificationFields
+                                    rules={rules}
+                                    address={address}
+                                    subject={subject}
+                                    body={body}
+                                    priority={priority}
+                                    errors={errors}
+                                    onAddressChange={(value) => {
+                                        setAddress(value);
+                                        revalidateField('address', { address: value });
+                                    }}
+                                    onSubjectChange={(value) => {
+                                        setSubject(value);
+                                        revalidateField('subject', { subject: value });
+                                        revalidateField('body', { subject: value });
+                                    }}
+                                    onBodyChange={(value) => {
+                                        setBody(value);
+                                        revalidateField('body', { body: value });
+                                    }}
+                                    onFieldBlur={validateFieldOnBlur}
+                                    onPriorityChange={setPriority}
+                                    addressRef={(el) => {
+                                        addressFieldRef.current = el;
+                                    }}
+                                    subjectRef={(el) => {
+                                        subjectFieldRef.current = el;
+                                    }}
+                                    bodyRef={(el) => {
+                                        bodyFieldRef.current = el;
+                                    }}
+                                    addressExtra={recipientsExtra}
+                                    hideBody={usingTemplate}
+                                    templateSlot={
+                                        rules.providerTemplate ? (
+                                            <ProviderTemplateField
+                                                templateId={templateId}
+                                                variables={templateVariables}
+                                                error={errors.template}
+                                                disabled={mutation.isPending || batchIsSending}
+                                                onTemplateIdChange={(value) => {
+                                                    setTemplateId(value);
+                                                    setErrors((prev) => ({
+                                                        ...prev,
+                                                        template: undefined,
+                                                        body: undefined,
+                                                    }));
+                                                }}
+                                                onVariablesChange={(value) => {
+                                                    setTemplateVariables(value);
+                                                    setErrors((prev) => ({
+                                                        ...prev,
+                                                        template: undefined,
+                                                    }));
+                                                }}
+                                                templateRef={(el) => {
+                                                    templateFieldRef.current = el;
+                                                }}
+                                            />
+                                        ) : null
+                                    }
+                                />
+                                {channelType === 'PUSH' && (
+                                    <PushTokenButton
+                                        disabled={mutation.isPending || batchIsSending}
+                                        onToken={(token) => {
+                                            setAddress(token);
+                                            revalidateField('address', { address: token });
+                                        }}
+                                    />
+                                )}
+                                <AttachmentField
+                                    files={attachments}
+                                    rules={rules?.attachments ?? null}
+                                    error={errors.attachment}
+                                    disabled={mutation.isPending || batchIsSending}
+                                    onChange={(files) => {
+                                        setAttachments(files);
+                                        setErrors((prev) => ({ ...prev, attachment: undefined }));
+                                    }}
+                                />
+                            </>
+                        )}
+
+                        <div className="form-actions">
+                            <button
+                                type="submit"
+                                className="button"
+                                disabled={mutation.isPending || !rules}
+                            >
+                                {mutation.isPending ? 'Enviando...' : 'Enviar'}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                <ChannelSummary
+                    channel={channelsData?.items.find((item) => item.channelType === channelType)}
+                />
+            </div>
+
+            <ConfirmSendDialog
+                open={confirmOpen}
+                channelType={channelType}
+                recipientCount={
+                    parsedRecipients.entries.filter((e) => e.duplicateOf === null).length
+                }
+                message={usingTemplate ? `Plantilla ${templateId.trim()}` : body}
+                onConfirm={() => {
+                    void handleConfirmSend();
+                }}
+                onCancel={() => setConfirmOpen(false)}
+            />
+        </div>
+    );
+}
