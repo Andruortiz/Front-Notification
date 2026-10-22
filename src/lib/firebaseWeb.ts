@@ -45,6 +45,8 @@ export function serviceWorkerUrl(config: FirebaseWebConfig): string {
     return `/firebase-messaging-sw.js?${params.toString()}`;
 }
 
+const messagingWithForegroundListener = new WeakSet<object>();
+
 /**
  * Pide permiso de notificaciones y devuelve el token de dispositivo de este navegador.
  * El SDK de Firebase se carga recién aquí para no pesar en el resto de la aplicación.
@@ -66,8 +68,10 @@ export async function requestBrowserPushToken(config: FirebaseWebConfig): Promis
     }
 
     try {
-        const [{ initializeApp, getApps, getApp }, { getMessaging, getToken, isSupported }] =
-            await Promise.all([import('firebase/app'), import('firebase/messaging')]);
+        const [
+            { initializeApp, getApps, getApp },
+            { getMessaging, getToken, isSupported, onMessage },
+        ] = await Promise.all([import('firebase/app'), import('firebase/messaging')]);
 
         if (!(await isSupported())) {
             throw new PushTokenError(
@@ -78,12 +82,20 @@ export async function requestBrowserPushToken(config: FirebaseWebConfig): Promis
 
         const app = getApps().length > 0 ? getApp() : initializeApp(config);
         const registration = await navigator.serviceWorker.register(serviceWorkerUrl(config));
-        const token = await getToken(getMessaging(app), {
+        const messaging = getMessaging(app);
+        const token = await getToken(messaging, {
             vapidKey: config.vapidKey,
             serviceWorkerRegistration: registration,
         });
         if (!token) {
             throw new PushTokenError('failed', 'Firebase no devolvió un token.');
+        }
+        if (!messagingWithForegroundListener.has(messaging)) {
+            messagingWithForegroundListener.add(messaging);
+            onMessage(messaging, (payload) => {
+                const { title, body } = payload.notification ?? {};
+                void registration.showNotification(title ?? '', { body });
+            });
         }
         return token;
     } catch (error) {
